@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TruckNest - Landowner Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.css">
+</head>
+<body class="bg-gray-50 min-h-screen">
+  <!-- Navbar -->
+  <nav class="bg-[#1F3A93] shadow-md sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <span class="text-2xl font-bold text-white">TruckNest</span>
+        <span class="text-white text-sm hidden md:inline" id="userEmail">(user@email.com)</span>
+      </div>
+      <div class="flex items-center gap-4">
+        <button id="notificationBtn" class="relative text-white focus:outline-none">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+          <span class="absolute top-0 right-0 inline-block w-2 h-2 bg-red-500 rounded-full"></span>
+        </button>
+        <a href="index.html" class="text-white hover:text-[#FFA500] font-medium">Logout</a>
+      </div>
+    </div>
+  </nav>
+  <div class="flex flex-col md:flex-row min-h-screen">
+    <!-- Sidebar -->
+    <aside class="bg-white shadow-md w-full md:w-56 p-4 flex flex-row md:flex-col gap-2 md:gap-4 md:min-h-screen">
+      <a href="#" class="block py-2 px-4 rounded hover:bg-[#FFA500] hover:text-white transition">Dashboard</a>
+      <a href="#" id="openProfileModal" class="block py-2 px-4 rounded hover:bg-[#FFA500] hover:text-white transition">Profile</a>
+      <a href="#listings" class="block py-2 px-4 rounded hover:bg-[#FFA500] hover:text-white transition">Listings</a>
+      <a href="#bulk-management" class="block py-2 px-4 rounded hover:bg-[#FFA500] hover:text-white transition">Bulk Management</a>
+      <a href="#analytics" class="block py-2 px-4 rounded hover:bg-[#FFA500] hover:text-white transition">Analytics</a>
+      <a href="#support" class="block py-2 px-4 rounded hover:bg-[#FFA500] hover:text-white transition">Support</a>
+      <a href="#" id="openMessagesModal" class="block py-2 px-4 rounded hover:bg-[#FFA500] hover:text-white transition flex items-center">Messages <span id="unreadBadge" class="ml-2 hidden bg-red-500 text-white text-xs rounded-full px-2 py-0.5"></span></a>
+    </aside>
+    <!-- Main Content -->
+    <main class="flex-1 px-4 py-8">
+      <div id="notificationArea" class="fixed top-4 right-4 z-50"></div>
+      <!-- Onboarding Modal -->
+      <div id="onboardingModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 hidden">
+        <div class="bg-white rounded-lg shadow-lg w-full max-w-md p-8 relative">
+          <button id="closeOnboardingModal" class="absolute top-2 right-2 text-gray-400 hover:text-gray-700 text-2xl">&times;</button>
+          <h2 class="text-2xl font-bold mb-4 text-[#1F3A93]">Welcome to TruckNest!</h2>
+          <ul class="mb-4 space-y-2">
+            <li><input type="checkbox" checked disabled class="mr-2">Complete Your Profile</li>
+            <li><input type="checkbox" disabled class="mr-2">Add Your First Listing</li>
+            <li><input type="checkbox" disabled class="mr-2">Review Booking Requests</li>
+          </ul>
+          <button id="closeOnboardingBtn" class="w-full bg-[#FFA500] text-white px-4 py-2 rounded-full font-semibold hover:bg-orange-600 transition">Get Started</button>
+        </div>
+      </div>
+      <!-- Bulk Management Section -->
+      <section id="bulk-management" class="mb-8">
+        <h2 class="text-2xl font-bold mb-4 text-[#1F3A93]">Bulk Listing Management</h2>
+        
+        <!-- Bulk Actions Form -->
+        <form id="bulkActionsForm" class="bg-white rounded-lg shadow-lg p-6 mb-6">
+          <div class="flex items-center mb-4">
+            <input type="checkbox" id="selectAllListings" class="mr-2">
+            <label for="selectAllListings" class="font-medium">Select All</label>
+            
+            <select id="bulkAction" class="ml-4 px-4 py-2 border rounded-lg">
+              <option value="">Choose Action</option>
+              <option value="availability">Update Availability</option>
+              <option value="price">Update Price</option>
+              <option value="allowedTypes">Update Allowed Types</option>
+              <option value="delete">Delete Selected</option>
+            </select>
+            
+            <button type="submit" class="ml-4 bg-[#1F3A93] text-white px-6 py-2 rounded-lg hover:bg-[#FFA500] transition">
+              Apply
+            </button>
+          </div>
+        </form>
+
+        <!-- Listings Container -->
+        <div id="listingsContainer" class="space-y-4">
+          <!-- Listings will be dynamically inserted here -->
+        </div>
+      </section>
+
+      <!-- Bulk Edit Modal -->
+      <div id="bulkEditModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+        <div class="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
+          <h3 class="text-xl font-bold mb-4">Update Allowed Vehicle Types</h3>
+          <form>
+            <div class="space-y-2 mb-4">
+              <label class="flex items-center">
+                <input type="checkbox" name="allowedTypes" value="Trucks" class="mr-2">
+                Trucks
+              </label>
+              <label class="flex items-center">
+                <input type="checkbox" name="allowedTypes" value="Heavy Equipment" class="mr-2">
+                Heavy Equipment
+              </label>
+              <label class="flex items-center">
+                <input type="checkbox" name="allowedTypes" value="Boats" class="mr-2">
+                Boats
+              </label>
+              <label class="flex items-center">
+                <input type="checkbox" name="allowedTypes" value="RVs" class="mr-2">
+                RVs
+              </label>
+              <label class="flex items-center">
+                <input type="checkbox" name="allowedTypes" value="Containers" class="mr-2">
+                Containers
+              </label>
+            </div>
+            <div class="flex justify-end gap-2">
+              <button type="button" onclick="this.closest('#bulkEditModal').classList.add('hidden')" 
+                      class="px-4 py-2 border rounded-lg hover:bg-gray-100">
+                Cancel
+              </button>
+              <button type="submit" class="px-4 py-2 bg-[#1F3A93] text-white rounded-lg hover:bg-[#FFA500]">
+                Update
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+      <!-- Dashboard Content -->
+      <h1 class="text-2xl font-bold mb-4 text-[#1F3A93]">Dashboard</h1>
+      <section class="mb-8">
+        <h2 class="text-xl font-semibold mb-2">Your Listings</h2>
+        <button id="openCreateListingModal" class="mb-4 bg-[#1F3A93] text-white px-4 py-2 rounded-full font-semibold hover:bg-orange-600 transition">Create Listing</button>
+        <div class="bg-gray-100 rounded p-4 text-gray-500">(Feature coming soon)</div>
+      </section>
+      <section id="analytics" class="mb-8">
+        <h2 class="text-xl font-semibold mb-2">Analytics & Calendar</h2>
+        <div class="mb-4">
+          <div id="calendar" class="grid grid-cols-7 gap-1 bg-white rounded p-4 shadow"></div>
+          <div class="flex gap-4 mt-2 text-sm">
+            <span class="inline-block w-4 h-4 bg-green-300 rounded mr-1"></span> Available
+            <span class="inline-block w-4 h-4 bg-red-400 rounded mr-1"></span> Unavailable
+            <span class="inline-block w-4 h-4 bg-blue-400 rounded mr-1"></span> Booked
+          </div>
+        </div>
+        <div class="bg-gray-100 rounded p-4 text-gray-500">Views, bookings, and earnings (Feature coming soon)</div>
+      </section>
+      <section id="bookings" class="mb-8">
+        <h2 class="text-xl font-semibold mb-2">Pending Booking Requests</h2>
+        <div class="mb-4 flex flex-wrap gap-2 items-center">
+          <label class="text-gray-700 font-medium">Filter by Date:</label>
+          <input type="date" id="bookingFilterDate" class="px-2 py-1 rounded border border-gray-300">
+          <button id="clearBookingFilter" class="px-3 py-1 rounded bg-gray-200 text-gray-700">Clear</button>
+        </div>
+        <div id="bookingNotification" class="hidden mb-2 p-2 rounded text-white font-semibold"></div>
+        <div class="bg-gray-100 rounded p-4 text-gray-500">(Feature coming soon)</div>
+      </section>
+      <section id="support" class="mb-8">
+        <h2 class="text-xl font-semibold mb-2">Support</h2>
+        <div class="bg-gray-100 rounded p-4 text-gray-500">Contact support@trucknest.com</div>
+      </section>
+      <!-- Listing Creation Modal -->
+      <div id="createListingModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 hidden">
+        <div class="bg-white rounded-lg shadow-lg w-full max-w-4xl p-8 relative max-h-[90vh] overflow-y-auto">
+          <button id="closeCreateListingModal" class="absolute top-2 right-2 text-gray-400 hover:text-gray-700 text-2xl">&times;</button>
+          <h2 class="text-2xl font-bold mb-4 text-[#1F3A93]">Create New Listing</h2>
+          <form id="createListingForm" class="space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="space-y-4">
+                <input type="text" name="title" placeholder="Title" 
+                       class="w-full px-4 py-2 rounded border border-gray-300" required>
+                <textarea name="description" placeholder="Description" 
+                         class="w-full px-4 py-2 rounded border border-gray-300 h-32" required></textarea>
+                <input type="text" name="location" placeholder="Location" 
+                       class="w-full px-4 py-2 rounded border border-gray-300" required>
+              </div>
+              <div class="space-y-4">
+                <div class="flex gap-4">
+                  <input type="number" name="price" placeholder="Price" 
+                         class="flex-1 px-4 py-2 rounded border border-gray-300" required min="0">
+                  <select name="duration" class="flex-1 px-4 py-2 rounded border border-gray-300" required>
+                    <option value="">Select Duration</option>
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="monthly">Monthly</option>
+                  </select>
+                </div>
+                <input type="text" name="amenities" placeholder="Amenities (comma separated)" 
+                       class="w-full px-4 py-2 rounded border border-gray-300">
+                <div>
+                  <label class="block text-gray-700 font-semibold mb-1">
+                    Allowed Vehicle/Item Types
+                    <span title="Select all types of vehicles/items your space can accommodate." 
+                          class="ml-1 text-gray-400 cursor-help">?</span>
+                  </label>
+                  <div class="flex flex-wrap gap-4">
+                    <label><input type="checkbox" name="allowedTypes" value="Trucks"> Trucks</label>
+                    <label><input type="checkbox" name="allowedTypes" value="Heavy Equipment"> Heavy Equipment</label>
+                    <label><input type="checkbox" name="allowedTypes" value="Boats"> Boats</label>
+                    <label><input type="checkbox" name="allowedTypes" value="RVs"> RVs</label>
+                    <label><input type="checkbox" name="allowedTypes" value="Containers"> Containers</label>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Photo Gallery Section -->
+            <div id="photoGalleryContainer"></div>
+
+            <button type="submit" 
+                    class="bg-[#FFA500] text-white px-6 py-2 rounded-full font-semibold hover:bg-orange-600 transition w-full">
+              Create Listing
+            </button>
+          </form>
+        </div>
+      </div>
+    </main>
+    <!-- Profile Modal -->
+    <div id="profileModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 hidden">
+      <div class="bg-white rounded-lg shadow-lg w-full max-w-md p-8 relative">
+        <button id="closeProfileModal" class="absolute top-2 right-2 text-gray-400 hover:text-gray-700 text-2xl">&times;</button>
+        <h2 class="text-2xl font-bold mb-4 text-[#1F3A93]">Profile & Settings</h2>
+        <form class="space-y-4">
+          <input type="text" placeholder="Name" class="w-full px-4 py-2 rounded border border-gray-300">
+          <input type="email" placeholder="Email" class="w-full px-4 py-2 rounded border border-gray-300">
+          <input type="password" placeholder="Change Password" class="w-full px-4 py-2 rounded border border-gray-300">
+          <button type="submit" class="bg-[#FFA500] text-white px-6 py-2 rounded-full font-semibold hover:bg-orange-600 transition">Save Changes</button>
+        </form>
+      </div>
+    </div>
+    <!-- Messaging Modal -->
+    <div id="messagesModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 hidden">
+      <div class="bg-white rounded-lg shadow-lg w-full max-w-2xl p-6 relative flex flex-col h-[80vh]">
+        <button id="closeMessagesModal" class="absolute top-2 right-2 text-gray-400 hover:text-gray-700 text-2xl">&times;</button>
+        <h2 class="text-2xl font-bold mb-4 text-[#1F3A93]">Messages</h2>
+        <button id="startNewConversationBtn" class="mb-2 bg-[#FFA500] text-white px-4 py-2 rounded-full font-semibold hover:bg-orange-600 transition self-start">Start New Conversation</button>
+        <div id="userSearchSection" class="mb-2 hidden">
+          <input type="text" id="userSearchInput" class="px-3 py-2 rounded border border-gray-300 w-full" placeholder="Search users by email...">
+          <ul id="userSearchResults" class="mt-2 space-y-1"></ul>
+        </div>
+        <div class="flex flex-1 gap-4 overflow-hidden">
+          <!-- Conversation List -->
+          <div class="w-1/3 border-r overflow-y-auto">
+            <ul id="conversationList" class="space-y-2"></ul>
+          </div>
+          <!-- Chat Window -->
+          <div class="flex-1 flex flex-col">
+            <div id="chatHeader" class="font-semibold text-[#1F3A93] mb-2"></div>
+            <div id="chatMessages" class="flex-1 overflow-y-auto bg-gray-50 rounded p-2 mb-2"></div>
+            <form id="sendMessageForm" class="flex gap-2 mt-auto">
+              <input type="text" id="messageInput" class="flex-1 px-3 py-2 rounded border border-gray-300" placeholder="Type a message..." autocomplete="off">
+              <button type="submit" class="bg-[#FFA500] text-white px-4 py-2 rounded-full font-semibold hover:bg-orange-600 transition">Send</button>
+            </form>
+          </div>
+        </div>
+        <div id="messageNotification" class="hidden mt-2 p-2 rounded text-white font-semibold"></div>
+      </div>
+    </div>
+  </div>
+  <script type="module">
+import { auth, db } from './firebase.js';
+import { doc, getDoc, collection, query, where, getDocs, updateDoc, addDoc, orderBy, onSnapshot, serverTimestamp, setDoc, limit, startAt, endAt } from 'firebase/firestore';
+import { onAuthStateChanged } from 'firebase/auth';
+import { initBulkListingManagement } from './bulk-listing-management.js';
+import { PhotoGallery } from './photo-gallery.js';
+
+const userEmailSpan = document.getElementById('userEmail');
+const profileModal = document.getElementById('profileModal');
+const onboardingModal = document.getElementById('onboardingModal');
+const onboardingSteps = [
+  { key: 'profileComplete', label: 'Complete Your Profile' },
+  { key: 'firstListingAdded', label: 'Add Your First Listing' }
+];
+
+let currentUser = null;
+let userDocRef = null;
+let currentThreadId = null;
+let unsubscribeMessages = null;
+let allThreads = [];
+
+function showBookingNotification(message, type) {
+  const notif = document.getElementById('bookingNotification');
+  notif.textContent = message;
+  notif.className = `mb-2 p-2 rounded text-white font-semibold ${type === 'success' ? 'bg-green-500' : 'bg-red-500'}`;
+  notif.classList.remove('hidden');
+  setTimeout(() => notif.classList.add('hidden'), 3000);
+}
+
+onAuthStateChanged(auth, async (user) => {
+  if (!user) {
+    window.location.href = 'index.html';
+    return;
+  }
+  currentUser = user;
+  if (userEmailSpan) userEmailSpan.textContent = user.email;
+  // Fetch user profile from Firestore
+  const q = query(collection(db, 'users'), where('uid', '==', user.uid));
+  const snap = await getDocs(q);
+  let userMap = {};
+  if (!snap.empty) {
+    const userDoc = snap.docs[0];
+    userDocRef = userDoc.ref;
+    const data = userDoc.data();
+    // Fill profile modal
+    if (profileModal) {
+      const inputs = profileModal.querySelectorAll('input');
+      inputs.forEach(input => {
+        if (input.type === 'email') input.value = data.email || '';
+        if (input.type === 'text' && input.placeholder === 'Name') input.value = data.name || '';
+      });
+    }
+    // Onboarding progress
+    let allComplete = true;
+    onboardingSteps.forEach(step => {
+      if (!data[step.key]) allComplete = false;
+      const li = Array.from(onboardingModal.querySelectorAll('li')).find(l => l.textContent.includes(step.label));
+      if (li) {
+        li.querySelector('input[type=\"checkbox\"]').checked = !!data[step.key];
+      }
+    });
+    if (allComplete && onboardingModal) onboardingModal.classList.add('hidden');
+    else if (onboardingModal) onboardingModal.classList.remove('hidden');
+  }
+  // Fetch listings
+  const listingsSection = document.querySelector('section.mb-8');
+  let listingIds = [];
+  let listingTitles = {};
+  if (listingsSection) {
+    const listingsQ = query(collection(db, 'parking'), where('ownerId', '==', user.uid));
+    const listingsSnap = await getDocs(listingsQ);
+    const listings = [];
+    listingsSnap.forEach(doc => {
+      listings.push(doc.data());
+      listingIds.push(doc.id);
+      listingTitles[doc.id] = doc.data().title;
+    });
+    const listingsDiv = listingsSection.querySelector('div');
+    if (listings.length > 0) {
+      listingsDiv.innerHTML = listings.map(l => `<div class='mb-2 p-2 bg-white rounded shadow'><b>${l.title}</b> - $${l.price}/${l.duration} - ${l.available ? 'Available' : 'Booked'}</div>`).join('');
+    }
+  }
+  // Fetch pending booking requests for these listings
+  const bookingsSection = document.querySelector('section#bookings');
+  const bookingsDiv = bookingsSection.querySelector('div.bg-gray-100');
+  const filterInput = document.getElementById('bookingFilterDate');
+  const clearBtn = document.getElementById('clearBookingFilter');
+  let allBookings = [];
+  async function renderBookings() {
+    if (listingIds.length === 0) return;
+    const bookingsQ = query(collection(db, 'bookings'), where('parkingId', 'in', listingIds), where('status', '==', 'pending'));
+    const bookingsSnap = await getDocs(bookingsQ);
+    const bookings = [];
+    let userIds = [];
+    bookingsSnap.forEach(doc => {
+      bookings.push({ ...doc.data(), id: doc.id });
+      userIds.push(doc.data().userId);
+    });
+    // Fetch user emails for all userIds
+    let userEmailMap = {};
+    if (userIds.length > 0) {
+      const usersQ = query(collection(db, 'users'), where('uid', 'in', userIds));
+      const usersSnap = await getDocs(usersQ);
+      usersSnap.forEach(u => {
+        userEmailMap[u.data().uid] = u.data().email;
+      });
+    }
+    allBookings = bookings;
+    displayBookings();
+    // Add filter logic
+    filterInput.addEventListener('change', displayBookings);
+    clearBtn.addEventListener('click', function() {
+      filterInput.value = '';
+      displayBookings();
+    });
+    function displayBookings() {
+      let filtered = allBookings;
+      if (filterInput.value) {
+        filtered = allBookings.filter(b => {
+          if (b.createdAt && b.createdAt.toDate) {
+            const d = b.createdAt.toDate();
+            return d.toISOString().slice(0,10) === filterInput.value;
+          }
+          return false;
+        });
+      }
+      if (filtered.length > 0) {
+        bookingsDiv.innerHTML = filtered.map(b => `
+          <div class='mb-2 p-2 bg-white rounded shadow'>
+            <b>Listing:</b> ${listingTitles[b.parkingId] || b.parkingId} <br>
+            <b>User:</b> ${userEmailMap[b.userId] || b.userId} <br>
+            <b>Date:</b> ${b.createdAt?.toDate?.().toLocaleString?.() || ''}<br>
+            ${b.vehicleType ? `<b>Vehicle Type:</b> ${b.vehicleType}<br>` : ''}
+            ${b.notes ? `<b>Notes:</b> ${b.notes}<br>` : ''}
+            ${b.startDate && b.endDate ? `<b>Booking Range:</b> ${b.startDate} to ${b.endDate}<br>` : ''}
+            <button class='approve-btn bg-green-500 text-white px-3 py-1 rounded mr-2' data-id='${b.id}'>Approve</button>
+            <button class='decline-btn bg-red-500 text-white px-3 py-1 rounded mr-2' data-id='${b.id}'>Decline</button>
+            <button class='message-btn bg-blue-500 text-white px-3 py-1 rounded' onclick='openMessageWithUser("${b.userId}", "${userEmailMap[b.userId] || b.userId}")'>Message</button>
+          </div>
+        `).join('');
+        // Add event listeners for approve/decline
+        bookingsDiv.querySelectorAll('.approve-btn').forEach(btn => {
+          btn.addEventListener('click', async function() {
+            await updateDoc(doc(db, 'bookings', this.dataset.id), { status: 'approved' });
+            this.parentElement.style.opacity = 0.5;
+            this.parentElement.innerHTML += '<div class="text-green-600 font-bold mt-2">Approved</div>';
+            showBookingNotification('Booking approved!', 'success');
+          });
+        });
+        bookingsDiv.querySelectorAll('.decline-btn').forEach(btn => {
+          btn.addEventListener('click', async function() {
+            await updateDoc(doc(db, 'bookings', this.dataset.id), { status: 'declined' });
+            this.parentElement.style.opacity = 0.5;
+            this.parentElement.innerHTML += '<div class="text-red-600 font-bold mt-2">Declined</div>';
+            showBookingNotification('Booking declined.', 'error');
+          });
+        });
+      } else {
+        bookingsDiv.innerHTML = '<span class="text-gray-500">No pending bookings for this date.</span>';
+      }
+    }
+  }
+  renderBookings();
+  // Analytics placeholder (could be expanded to real stats)
+  // ...
+});
+// Profile modal save
+if (profileModal) {
+  profileModal.querySelector('form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    if (!userDocRef) return;
+    const name = this.querySelector('input[placeholder=\"Name\"]').value;
+    const email = this.querySelector('input[placeholder=\"Email\"]').value;
+    await updateDoc(userDocRef, { name, email, profileComplete: true });
+    alert('Profile updated!');
+    profileModal.classList.add('hidden');
+  });
+}
+
+// Messaging UI Elements
+const openMessagesModal = document.getElementById('openMessagesModal');
+const closeMessagesModal = document.getElementById('closeMessagesModal');
+const messagesModal = document.getElementById('messagesModal');
+const conversationList = document.getElementById('conversationList');
+const chatHeader = document.getElementById('chatHeader');
+const chatMessages = document.getElementById('chatMessages');
+const sendMessageForm = document.getElementById('sendMessageForm');
+const messageInput = document.getElementById('messageInput');
+const unreadBadge = document.getElementById('unreadBadge');
+const messageNotification = document.getElementById('messageNotification');
+const startNewConversationBtn = document.getElementById('startNewConversationBtn');
+const userSearchSection = document.getElementById('userSearchSection');
+const userSearchInput = document.getElementById('userSearchInput');
+const userSearchResults = document.getElementById('userSearchResults');
+
+function showMessageNotification(message, type) {
+  messageNotification.textContent = message;
+  messageNotification.className = `mt-2 p-2 rounded text-white font-semibold ${type === 'success' ? 'bg-green-500' : 'bg-red-500'}`;
+  messageNotification.classList.remove('hidden');
+  setTimeout(() => messageNotification.classList.add('hidden'), 3000);
+}
+
+function openModal() { messagesModal.classList.remove('hidden'); }
+function closeModal() { messagesModal.classList.add('hidden'); if (unsubscribeMessages) unsubscribeMessages(); userSearchSection.classList.add('hidden'); }
+if (openMessagesModal && closeMessagesModal && messagesModal) {
+  openMessagesModal.addEventListener('click', e => { e.preventDefault(); openModal(); });
+  closeMessagesModal.addEventListener('click', closeModal);
+  window.addEventListener('click', e => { if (e.target === messagesModal) closeModal(); });
+}
+if (startNewConversationBtn) {
+  startNewConversationBtn.addEventListener('click', () => {
+    userSearchSection.classList.toggle('hidden');
+    userSearchInput.value = '';
+    userSearchResults.innerHTML = '';
+  });
+}
+if (userSearchInput) {
+  userSearchInput.addEventListener('input', async function() {
+    const val = this.value.trim();
+    userSearchResults.innerHTML = '';
+    if (val.length < 3) return;
+    // Search users by email
+    const usersQ = query(collection(db, 'users'), where('email', ">=", val), where('email', "<=", val + '\uf8ff'), limit(5));
+    const usersSnap = await getDocs(usersQ);
+    usersSnap.forEach(u => {
+      if (u.data().uid !== currentUser.uid && !allThreads.some(t => t.participants.includes(u.data().uid))) {
+        const li = document.createElement('li');
+        li.className = 'p-2 rounded cursor-pointer hover:bg-gray-100';
+        li.textContent = u.data().email;
+        li.addEventListener('click', async () => {
+          // Create new thread
+          const threadRef = doc(collection(db, 'messages'));
+          await setDoc(threadRef, {
+            participants: [currentUser.uid, u.data().uid],
+            participantNames: [currentUser.email, u.data().email],
+            lastMessage: null,
+            lastTimestamp: serverTimestamp()
+          });
+          userSearchSection.classList.add('hidden');
+          openThread(threadRef.id);
+        });
+        userSearchResults.appendChild(li);
+      }
+    });
+  });
+}
+
+onAuthStateChanged(auth, async (user) => {
+  if (!user) return;
+  currentUser = user;
+  // Fetch all threads for this user
+  const threadsQ = query(collection(db, 'messages'), where('participants', 'array-contains', user.uid));
+  onSnapshot(threadsQ, async (threadsSnap) => {
+    let threads = [];
+    let unreadCount = 0;
+    threadsSnap.forEach(docSnap => {
+      const data = docSnap.data();
+      threads.push({ ...data, id: docSnap.id });
+      if (data.lastMessage && data.lastMessage.senderId !== user.uid && (!data.lastMessage.readBy || !data.lastMessage.readBy.includes(user.uid))) unreadCount++;
+    });
+    allThreads = threads;
+    // Update unread badge
+    if (unreadCount > 0) {
+      unreadBadge.textContent = unreadCount;
+      unreadBadge.classList.remove('hidden');
+    } else {
+      unreadBadge.classList.add('hidden');
+    }
+    // Render conversation list
+    conversationList.innerHTML = threads.map(t => `
+      <li class="p-2 rounded cursor-pointer hover:bg-gray-100 flex justify-between items-center ${t.id === currentThreadId ? 'bg-gray-200' : ''}" data-id="${t.id}">
+        <span>${t.participantNames?.filter(n => n !== user.email).join(', ') || 'Conversation'}</span>
+        ${t.lastMessage && t.lastMessage.senderId !== user.uid && (!t.lastMessage.readBy || !t.lastMessage.readBy.includes(user.uid)) ? '<span class="bg-red-500 text-white text-xs rounded-full px-2">New</span>' : ''}
+      </li>
+    `).join('');
+    // Add click listeners
+    conversationList.querySelectorAll('li').forEach(li => {
+      li.addEventListener('click', () => openThread(li.dataset.id));
+    });
+    // Auto-open first thread
+    if (!currentThreadId && threads.length > 0) openThread(threads[0].id);
+  });
+});
+
+async function openThread(threadId) {
+  currentThreadId = threadId;
+  // Fetch thread info
+  const threadRef = doc(db, 'messages', threadId);
+  const threadSnap = await getDoc(threadRef);
+  const threadData = threadSnap.data();
+  chatHeader.textContent = threadData.participantNames?.filter(n => n !== currentUser.email).join(', ') || 'Conversation';
+  // Listen for messages
+  if (unsubscribeMessages) unsubscribeMessages();
+  const messagesQ = query(collection(db, 'messages', threadId, 'messages'), orderBy('timestamp'));
+  unsubscribeMessages = onSnapshot(messagesQ, snap => {
+    chatMessages.innerHTML = '';
+    snap.forEach(msgDoc => {
+      const msg = msgDoc.data();
+      const isMe = msg.senderId === currentUser.uid;
+      const msgDiv = document.createElement('div');
+      msgDiv.className = `mb-2 p-2 rounded ${isMe ? 'bg-[#FFA500] text-white ml-auto' : 'bg-gray-200 text-gray-800 mr-auto'}`;
+      msgDiv.style.maxWidth = '70%';
+      msgDiv.textContent = msg.text;
+      chatMessages.appendChild(msgDiv);
+    });
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+  });
+  // Mark last message as read
+  if (threadData.lastMessage && threadData.lastMessage.senderId !== currentUser.uid && (!threadData.lastMessage.readBy || !threadData.lastMessage.readBy.includes(currentUser.uid))) {
+    await updateDoc(threadRef, { 'lastMessage.readBy': [...(threadData.lastMessage.readBy || []), currentUser.uid] });
+  }
+}
+
+if (sendMessageForm) {
+  sendMessageForm.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    if (!currentThreadId || !messageInput.value.trim()) return;
+    const threadRef = doc(db, 'messages', currentThreadId);
+    const msg = {
+      senderId: currentUser.uid,
+      text: messageInput.value,
+      timestamp: serverTimestamp(),
+      readBy: [currentUser.uid]
+    };
+    await addDoc(collection(db, 'messages', currentThreadId, 'messages'), msg);
+    await updateDoc(threadRef, {
+      lastMessage: { ...msg, timestamp: serverTimestamp() },
+    });
+    messageInput.value = '';
+    showMessageNotification('Message sent!', 'success');
+  });
+}
+// Message from booking requests
+window.openMessageWithUser = async function(userId, userEmail) {
+  // Check if thread exists
+  const threadsQ = query(collection(db, 'messages'), where('participants', 'array-contains', currentUser.uid));
+  const threadsSnap = await getDocs(threadsQ);
+  let foundThread = null;
+  threadsSnap.forEach(docSnap => {
+    const data = docSnap.data();
+    if (data.participants.includes(userId)) foundThread = docSnap.id;
+  });
+  if (foundThread) {
+    openModal();
+    openThread(foundThread);
+  } else {
+    // Create new thread
+    const threadRef = doc(collection(db, 'messages'));
+    await setDoc(threadRef, {
+      participants: [currentUser.uid, userId],
+      participantNames: [currentUser.email, userEmail],
+      lastMessage: null,
+      lastTimestamp: serverTimestamp()
+    });
+    openModal();
+    openThread(threadRef.id);
+  }
+}
+
+// Calendar logic
+const calendarDiv = document.getElementById('calendar');
+let unavailableDates = [];
+let bookingsForCalendar = [];
+let selectedMonth = new Date().getMonth();
+let selectedYear = new Date().getFullYear();
+
+function renderCalendar() {
+  if (!calendarDiv) return;
+  calendarDiv.innerHTML = '';
+  const firstDay = new Date(selectedYear, selectedMonth, 1).getDay();
+  const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
+  // Weekday headers
+  ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(d => {
+    const h = document.createElement('div');
+    h.textContent = d;
+    h.className = 'font-bold text-center';
+    calendarDiv.appendChild(h);
+  });
+  // Empty slots before first day
+  for (let i = 0; i < firstDay; i++) {
+    const empty = document.createElement('div');
+    calendarDiv.appendChild(empty);
+  }
+  // Days
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dateStr = `${selectedYear}-${String(selectedMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    const cell = document.createElement('div');
+    cell.textContent = day;
+    cell.className = 'text-center py-1 rounded cursor-pointer';
+    // Check if unavailable
+    if (unavailableDates.includes(dateStr)) {
+      cell.classList.add('bg-red-400','text-white');
+    } else {
+      // Check if booked
+      const booking = bookingsForCalendar.find(b => b.dates && b.dates.includes(dateStr));
+      if (booking) {
+        cell.classList.add('bg-blue-400','text-white');
+        cell.title = `Booked: ${booking.status}`;
+      } else {
+        cell.classList.add('bg-green-300');
+      }
+    }
+    cell.addEventListener('click', async () => {
+      // Toggle unavailable
+      if (unavailableDates.includes(dateStr)) {
+        unavailableDates = unavailableDates.filter(d => d !== dateStr);
+      } else {
+        unavailableDates.push(dateStr);
+      }
+      // Update Firestore (assume one listing for now)
+      if (listingIds.length > 0) {
+        await updateDoc(doc(db, 'parking', listingIds[0]), { unavailableDates });
+      }
+      renderCalendar();
+    });
+    calendarDiv.appendChild(cell);
+  }
+}
+
+// Fetch unavailable dates and bookings for calendar after listings are loaded
+async function loadCalendarData() {
+  if (listingIds.length === 0) return;
+  // Assume one listing for now
+  const listingRef = doc(db, 'parking', listingIds[0]);
+  const listingSnap = await getDoc(listingRef);
+  unavailableDates = listingSnap.data().unavailableDates || [];
+  // Fetch bookings for this listing
+  const bookingsQ = query(collection(db, 'bookings'), where('parkingId', '==', listingIds[0]));
+  const bookingsSnap = await getDocs(bookingsQ);
+  bookingsForCalendar = [];
+  bookingsSnap.forEach(docSnap => {
+    const b = docSnap.data();
+    // Assume booking has startDate and endDate (YYYY-MM-DD)
+    if (b.startDate && b.endDate) {
+      const dates = [];
+      let d = new Date(b.startDate);
+      const end = new Date(b.endDate);
+      while (d <= end) {
+        dates.push(d.toISOString().slice(0,10));
+        d.setDate(d.getDate()+1);
+      }
+      bookingsForCalendar.push({ ...b, dates });
+    }
+  });
+  renderCalendar();
+}
+window.changeCalendarMonth = function(offset) {
+  selectedMonth += offset;
+  if (selectedMonth < 0) { selectedMonth = 11; selectedYear--; }
+  if (selectedMonth > 11) { selectedMonth = 0; selectedYear++; }
+  renderCalendar();
+}
+// Add month navigation
+if (calendarDiv) {
+  const nav = document.createElement('div');
+  nav.className = 'flex justify-between items-center mb-2';
+  nav.innerHTML = `<button onclick="changeCalendarMonth(-1)" class="px-2 py-1 bg-gray-200 rounded">&lt;</button>
+    <span class="font-semibold">${new Date(selectedYear, selectedMonth).toLocaleString('default', {month:'long',year:'numeric'})}</span>
+    <button onclick="changeCalendarMonth(1)" class="px-2 py-1 bg-gray-200 rounded">&gt;</button>`;
+  calendarDiv.parentElement.insertBefore(nav, calendarDiv);
+}
+// Load calendar data after listings are loaded
+setTimeout(loadCalendarData, 2000);
+
+document.addEventListener('DOMContentLoaded', initBulkListingManagement);
+
+// Listing form submit handler
+if (createListingForm) {
+  createListingForm.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    try {
+      const user = auth.currentUser;
+      if (!user) {
+        alert('Please login to create a listing');
+        return;
+      }
+
+      const formData = new FormData(e.target);
+      const allowedTypes = Array.from(e.target.querySelectorAll('input[name="allowedTypes"]:checked'))
+        .map(cb => cb.value);
+
+      // Create listing document
+      const listingRef = await addDoc(collection(db, 'parking'), {
+        title: formData.get('title'),
+        description: formData.get('description'),
+        location: formData.get('location'),
+        price: Number(formData.get('price')),
+        duration: formData.get('duration'),
+        ownerId: user.uid,
+        ownerEmail: user.email,
+        available: true,
+        amenities: formData.get('amenities') ? formData.get('amenities').split(',').map(a => a.trim()) : [],
+        allowedTypes,
+        images: [],
+        featuredImage: null,
+        createdAt: new Date()
+      });
+
+      // Initialize photo gallery with the new listing ID
+      new PhotoGallery('photoGalleryContainer', listingRef.id);
+
+      showNotification('Listing created successfully! You can now add photos.', 'success');
+    } catch (error) {
+      console.error('Error creating listing:', error);
+      showNotification('Error creating listing', 'error');
+    }
+  });
+}
+  </script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.js"></script>
+</body>
+</html> 
