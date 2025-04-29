@@ -1,74 +1,106 @@
-# TruckNest - Truck Parking Marketplace
+# TruckNest Parking App
 
-TruckNest is an Airbnb-like platform that connects truckers with available parking spaces. Landowners can list their parking lots, and truckers can book spaces for daily, weekly, or monthly periods.
+A Next.js application for managing truck parking spaces and reservations.
 
 ## Features
 
-- User authentication for both truckers and landowners
-- Parking space listings with photos, amenities, and pricing
-- Booking system with flexible duration options
-- Real-time availability calendar
-- Secure payment processing
-- Rating and review system
-- Messaging system between users
+- User authentication and authorization
+- Parking space management
+- Booking system
+- Admin dashboard
+- Payment processing
+- ID verification
+- Promo code management
+- Dispute resolution
 
-## Tech Stack
+## Prerequisites
 
-- Frontend: React.js with TypeScript
-- Backend: Node.js with Express
-- Database: MongoDB
-- Authentication: JWT
-- Payment Processing: Stripe
-- Maps Integration: Google Maps API
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js (v14 or higher)
-- MongoDB
+- Node.js 14.x or later
 - npm or yarn
+- Firebase account
+- Stripe account (for payments)
 
-### Installation
+## Environment Variables
 
-1. Clone the repository
+Create a `.env.local` file in the root directory with the following variables:
+
+```env
+# Firebase Configuration
+NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_auth_domain
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_storage_bucket
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_messaging_sender_id
+NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
+
+# Stripe Configuration
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=your_publishable_key
+STRIPE_SECRET_KEY=your_secret_key
+```
+
+## Installation
+
+1. Clone the repository:
+```bash
+git clone https://github.com/yourusername/trucknest-parking-app.git
+cd trucknest-parking-app
+```
+
 2. Install dependencies:
-   ```bash
-   # Install backend dependencies
-   cd backend
-   npm install
-
-   # Install frontend dependencies
-   cd ../frontend
-   npm install
-   ```
-
-3. Create a `.env` file in both frontend and backend directories with necessary environment variables
-
-4. Start the development servers:
-   ```bash
-   # Start backend server
-   cd backend
-   npm run dev
-
-   # Start frontend server
-   cd frontend
-   npm start
-   ```
-
-## Project Structure
-
+```bash
+npm install
+# or
+yarn install
 ```
-trucknest/
-├── frontend/           # React frontend application
-├── backend/            # Node.js/Express backend
-└── README.md
+
+3. Run the development server:
+```bash
+npm run dev
+# or
+yarn dev
 ```
+
+## Deployment
+
+### Deploying to Vercel
+
+1. Create a Vercel account at https://vercel.com
+2. Install Vercel CLI:
+```bash
+npm install -g vercel
+```
+
+3. Login to Vercel:
+```bash
+vercel login
+```
+
+4. Deploy the application:
+```bash
+vercel
+```
+
+5. For production deployment:
+```bash
+vercel --prod
+```
+
+### Environment Variables on Vercel
+
+Make sure to add all environment variables from your `.env.local` file to your Vercel project settings:
+
+1. Go to your project on Vercel
+2. Navigate to Settings > Environment Variables
+3. Add all required environment variables
 
 ## Contributing
 
-Please read CONTRIBUTING.md for details on our code of conduct and the process for submitting pull requests.
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE.md file for details 
+This project is licensed under the MIT License - see the LICENSE file for details. 
