@@ -1,0 +1,86 @@
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 20px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.title {
+  font-size: 2.5rem;
+  font-weight: bold;
+  color: #1F3A93;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.subtitle {
+  font-size: 1.2rem;
+  color: #666;
+  margin-bottom: 40px;
+  text-align: center;
+}
+
+.roleContainer {
+  display: flex;
+  gap: 40px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.roleCard {
+  background: white;
+  border-radius: 12px;
+  padding: 32px;
+  width: 300px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.roleCard:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+.roleIcon {
+  font-size: 3rem;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.roleCard h2 {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #1F3A93;
+  margin-bottom: 8px;
+  text-align: center;
+}
+
+.roleCard p {
+  color: #666;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.roleCard ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.roleCard li {
+  color: #444;
+  margin-bottom: 8px;
+  padding-left: 24px;
+  position: relative;
+}
+
+.roleCard li:before {
+  content: "✓";
+  color: #1F3A93;
+  position: absolute;
+  left: 0;
+} 

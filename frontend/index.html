@@ -1,309 +1,89 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TruckNest - Find Truck Parking</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="styles.css">
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#1F3A93">
-    <link rel="apple-touch-icon" href="images/icon-192.png">
-</head>
-<body class="bg-gray-50 min-h-screen">
-    <!-- Navbar -->
-    <nav class="bg-[#1F3A93] shadow-md sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-            <div class="flex items-center space-x-2 flex-shrink-0">
-                <span class="text-2xl font-bold text-white">TruckNest</span>
-            </div>
-            <div class="flex items-center space-x-6">
-                <a href="#" class="text-white hover:text-[#FFA500] font-medium">List Your Space</a>
-                <a href="#" class="text-white hover:text-[#FFA500] font-medium">Find Parking</a>
-                <a href="#" class="text-white hover:text-[#FFA500] font-medium">Login</a>
-                <a href="#" class="bg-[#FFA500] text-white px-4 py-2 rounded-full font-semibold hover:bg-orange-600 transition">Sign Up</a>
-            </div>
-        </div>
-    </nav>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Welcome to Firebase Hosting</title>
 
-    <!-- Hero Section -->
-    <section class="relative w-full h-[420px] md:h-[520px] flex items-center justify-center mb-12 bg-white">
-        <!-- Top left logo and subtitle -->
-        <div class="absolute top-8 left-8 max-w-xs md:max-w-md z-20 text-left">
-            <span class="italic font-medium text-base md:text-lg block" style="color:#4A4A4A;">
-                Every night, truckers are forced into unsafe parking, facing crime and theft. <br>
-                <span class="font-semibold" style="color:#1F3A93;">TruckNest</span> lets landowners offer safe spots — and get paid to protect America's drivers.
-            </span>
-        </div>
-        <!-- Hero background image -->
-        <img src="images/hero.jpeg.jpeg" alt="Handshake in front of truck" class="absolute inset-0 w-full h-full object-cover object-center brightness-75" style="z-index:1;" />
-        <!-- Hero overlay for text contrast -->
-        <!-- Overlay removed for maximum brightness -->
-        <div class="relative z-20 flex flex-col items-center justify-center w-full h-full text-center">
-            <h1 class="text-4xl md:text-5xl font-extrabold text-white drop-shadow-lg mb-6">Parking Solutions That Keep Your Business Moving.</h1>
-            <p class="text-lg md:text-xl font-semibold text-white drop-shadow mb-4">Trucks, Heavy Equipment, Boats, RV's, Containers</p>
-            <form id="searchForm" class="w-full max-w-4xl mx-auto bg-white bg-opacity-95 rounded-full shadow-lg p-2 mt-8 flex flex-wrap items-center gap-2">
-                <div class="flex-1 min-w-[180px]">
-                    <input type="text" name="location" placeholder="Enter city or zip code" class="w-full px-4 py-2 rounded-full border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#1F3A93] text-[#1F3A93]" required>
-                </div>
-                <div class="min-w-[140px]">
-                    <input type="date" name="date" class="w-full px-4 py-2 rounded-full border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#1F3A93] text-[#1F3A93]">
-                </div>
-                <div class="min-w-[140px]">
-                    <select name="duration" class="w-full px-4 py-2 rounded-full border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#1F3A93] text-[#1F3A93]">
-                        <option value="">Any Duration</option>
-                        <option value="daily">Daily</option>
-                        <option value="weekly">Weekly</option>
-                        <option value="monthly">Monthly</option>
-                    </select>
-                </div>
-                <div class="min-w-[180px]">
-                    <select name="vehicleType" class="w-full px-4 py-2 rounded-full border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#1F3A93] text-[#1F3A93]" aria-label="Select Your Vehicle Type">
-                        <option value="">Select Your Vehicle Type</option>
-                        <option value="Truck and Trailer">Truck and Trailer</option>
-                        <option value="Bobtail Truck">Bobtail Truck</option>
-                        <option value="Heavy Equipment">Heavy Equipment</option>
-                        <option value="Boat">Boat</option>
-                        <option value="RV">RV</option>
-                        <option value="Container">Container</option>
-                    </select>
-                </div>
-                <div class="min-w-[120px]">
-                    <button type="submit" class="w-full bg-[#FFA500] text-white px-6 py-2 rounded-full font-semibold hover:bg-orange-600 transition">Search</button>
-                </div>
-            </form>
-        </div>
-    </section>
+    <!-- update the version number as needed -->
+    <script defer src="/__/firebase/11.6.1/firebase-app-compat.js"></script>
+    <!-- include only the Firebase features as you need -->
+    <script defer src="/__/firebase/11.6.1/firebase-auth-compat.js"></script>
+    <script defer src="/__/firebase/11.6.1/firebase-database-compat.js"></script>
+    <script defer src="/__/firebase/11.6.1/firebase-firestore-compat.js"></script>
+    <script defer src="/__/firebase/11.6.1/firebase-functions-compat.js"></script>
+    <script defer src="/__/firebase/11.6.1/firebase-messaging-compat.js"></script>
+    <script defer src="/__/firebase/11.6.1/firebase-storage-compat.js"></script>
+    <script defer src="/__/firebase/11.6.1/firebase-analytics-compat.js"></script>
+    <script defer src="/__/firebase/11.6.1/firebase-remote-config-compat.js"></script>
+    <script defer src="/__/firebase/11.6.1/firebase-performance-compat.js"></script>
+    <!-- 
+      initialize the SDK after all desired features are loaded, set useEmulator to false
+      to avoid connecting the SDK to running emulators.
+    -->
+    <script defer src="/__/firebase/init.js?useEmulator=true"></script>
 
-    <!-- Stats Section -->
-    <section class="max-w-5xl mx-auto px-4 py-10">
-        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 text-center">
-            <div>
-                <div class="text-3xl md:text-4xl font-extrabold" style="color:#1F3A93;">3.6M+</div>
-                <div class="text-[#4A4A4A] text-lg">US Truckers</div>
-            </div>
-            <div>
-                <div class="text-3xl md:text-4xl font-extrabold" style="color:#1F3A93;">40,000+</div>
-                <div class="text-[#4A4A4A] text-lg">truckers don't find safe parking daily</div>
-            </div>
-            <div>
-                <div class="text-3xl md:text-4xl font-extrabold" style="color:#1F3A93;">1:11</div>
-                <div class="text-[#4A4A4A] text-lg">parking spot to drivers ratio</div>
-            </div>
-            <div>
-                <div class="text-3xl md:text-4xl font-extrabold" style="color:#1F3A93;">21%</div>
-                <div class="text-[#4A4A4A] text-lg">of truckers reported crime while on the road last year</div>
-            </div>
-        </div>
-    </section>
-
-    <!-- How TruckNest Works Section -->
-    <section class="max-w-5xl mx-auto px-4 py-12 mb-8">
-        <h2 class="text-3xl font-bold text-center" style="color:#1F3A93;">How TruckNest Works</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-10 mt-10">
-            <!-- Property Owners -->
-            <div class="bg-[#F5F5F5] rounded-2xl shadow p-8 flex flex-col items-center">
-                <div class="text-5xl mb-4">🏡</div>
-                <h3 class="text-xl font-semibold mb-4" style="color:#1F3A93;">For Property Owners</h3>
-                <ol class="list-decimal list-inside" style="color:#4A4A4A;">
-                    <li><span class="font-bold">Sign Up (Free):</span> Create a free account and list your land for truck parking.</li>
-                    <li><span class="font-bold">Add Your Location:</span> Click "Become a Property Member," set up your listing, and watch our quick video guide if needed.</li>
-                    <li><span class="font-bold">Accept Bookings:</span> Get instant email and text alerts when truckers book your space.</li>
-                </ol>
-            </div>
-            <!-- Truckers -->
-            <div class="bg-[#F5F5F5] rounded-2xl shadow p-8 flex flex-col items-center">
-                <div class="text-5xl mb-4">🚛</div>
-                <h3 class="text-xl font-semibold mb-4" style="color:#1F3A93;">For Truckers</h3>
-                <ol class="list-decimal list-inside" style="color:#4A4A4A;">
-                    <li><span class="font-bold">Create Your Profile:</span> Sign up free and add your truck, trailer, and company info.</li>
-                    <li><span class="font-bold">Find & Book Parking:</span> Reserve hourly, daily, weekly, or monthly spots wherever you need.</li>
-                    <li><span class="font-bold">Park and Go:</span> Message your Property Member for help.</li>
-                </ol>
-            </div>
-        </div>
-    </section>
-
-    <!-- Google Map Section -->
-    <section class="max-w-5xl mx-auto px-4 py-12 mb-8">
-        <h2 class="text-2xl font-bold mb-4" style="color:#1F3A93;">Explore Parking Locations</h2>
-        <div class="w-full h-80 rounded-2xl overflow-hidden shadow-lg">
-            <iframe
-                width="100%"
-                height="100%"
-                style="border:0;"
-                loading="lazy"
-                allowfullscreen
-                referrerpolicy="no-referrer-when-downgrade"
-                src="https://www.google.com/maps/embed/v1/view?key=AIzaSyCSY-0WgJnF4gtL23hbldUeiw_8P6NX08w&center=39.8283,-98.5795&zoom=4&maptype=roadmap">
-            </iframe>
-        </div>
-    </section>
-
-    <!-- Listings Section -->
-    <main class="max-w-7xl mx-auto px-4">
-        <h2 class="text-2xl font-bold text-gray-800 mb-6">Available Parking Spaces</h2>
-        <div id="parkingListings" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
-            <!-- Parking cards will be injected here by JS -->
-        </div>
-    </main>
-
-    <!-- Footer -->
-    <footer class="mt-16 py-8 bg-white border-t text-center text-gray-500 text-sm">
-        &copy; 2025 TruckNest. All rights reserved.
-    </footer>
-
-    <!-- Registration Modal -->
-    <div id="registerModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 hidden">
-      <div class="bg-white rounded-lg shadow-lg w-full max-w-md p-8 relative">
-        <button id="closeRegisterModal" class="absolute top-2 right-2 text-gray-400 hover:text-gray-700 text-2xl">&times;</button>
-        <h2 class="text-2xl font-bold mb-4 text-[#1F3A93]">Sign Up</h2>
-        <form id="registerForm" class="space-y-4">
-          <div>
-            <label for="registerEmail" class="block text-gray-700 font-semibold mb-1">Email</label>
-            <input type="email" id="registerEmail" name="email" required class="w-full px-4 py-2 rounded border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#1F3A93]">
-          </div>
-          <div>
-            <label for="registerPassword" class="block text-gray-700 font-semibold mb-1">Password</label>
-            <input type="password" id="registerPassword" name="password" required class="w-full px-4 py-2 rounded border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#1F3A93]">
-          </div>
-          <div>
-            <label class="block text-gray-700 font-semibold mb-1">Account Type</label>
-            <div class="flex gap-4">
-              <label class="flex items-center">
-                <input type="radio" name="role" value="trucker" required class="form-radio text-[#1F3A93]">
-                <span class="ml-2">Truck Member</span>
-              </label>
-              <label class="flex items-center">
-                <input type="radio" name="role" value="landowner" required class="form-radio text-[#1F3A93]">
-                <span class="ml-2">Land Member</span>
-              </label>
-            </div>
-          </div>
-          <button type="submit" class="w-full bg-[#FFA500] text-white px-4 py-2 rounded-full font-semibold hover:bg-orange-600 transition">Sign Up</button>
-        </form>
-      </div>
+    <style media="screen">
+      body { background: #ECEFF1; color: rgba(0,0,0,0.87); font-family: Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 0; }
+      #message { background: white; max-width: 360px; margin: 100px auto 16px; padding: 32px 24px; border-radius: 3px; }
+      #message h2 { color: #ffa100; font-weight: bold; font-size: 16px; margin: 0 0 8px; }
+      #message h1 { font-size: 22px; font-weight: 300; color: rgba(0,0,0,0.6); margin: 0 0 16px;}
+      #message p { line-height: 140%; margin: 16px 0 24px; font-size: 14px; }
+      #message a { display: block; text-align: center; background: #039be5; text-transform: uppercase; text-decoration: none; color: white; padding: 16px; border-radius: 4px; }
+      #message, #message a { box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24); }
+      #load { color: rgba(0,0,0,0.4); text-align: center; font-size: 13px; }
+      @media (max-width: 600px) {
+        body, #message { margin-top: 0; background: white; box-shadow: none; }
+        body { border-top: 16px solid #ffa100; }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="message">
+      <h2>Welcome</h2>
+      <h1>Firebase Hosting Setup Complete</h1>
+      <p>You're seeing this because you've successfully setup Firebase Hosting. Now it's time to go build something extraordinary!</p>
+      <a target="_blank" href="https://firebase.google.com/docs/hosting/">Open Hosting Documentation</a>
     </div>
-    <!-- End Registration Modal -->
+    <p id="load">Firebase SDK Loading&hellip;</p>
 
-    <script type="module" src="firebase.js"></script>
-    <script type="module" src="app.js"></script>
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCSY-0WgJnF4gtL23hbldUeiw_8P6NX08w&libraries=places"></script>
     <script>
-      window.initAutocomplete = function() {
-        const input = document.querySelector('input[name="location"]');
-        if (input && window.google && window.google.maps) {
-          new google.maps.places.Autocomplete(input, {
-            types: ['(cities)'], // or use ['geocode'] for all addresses
-            componentRestrictions: { country: "us" }
-          });
-        }
-      };
-      if (window.google && window.google.maps) {
-        window.initAutocomplete();
-      } else {
-        window.addEventListener('load', () => {
-          setTimeout(window.initAutocomplete, 1000);
-        });
-      }
-    </script>
-    <script>
-      document.getElementById('searchForm').addEventListener('submit', function(event) {
-        event.preventDefault();
-        const allowedTypes = Array.from(document.querySelectorAll('input[name="allowedTypes"]:checked')).map(cb => cb.value);
-        // Save allowedTypes with the listing
-        // You can add this logic to send allowedTypes to the server or handle it as needed
-      });
-    </script>
-    <script>
-      // Dropdown toggle for Allowed Vehicle/Item Types
       document.addEventListener('DOMContentLoaded', function() {
-        const btn = document.getElementById('allowedTypesDropdownBtn');
-        const dropdown = document.getElementById('allowedTypesDropdown');
-        if (btn && dropdown) {
-          btn.addEventListener('click', function(e) {
-            e.preventDefault();
-            dropdown.classList.toggle('hidden');
-          });
-          // Optional: Close dropdown if clicking outside
-          document.addEventListener('click', function(event) {
-            if (!btn.contains(event.target) && !dropdown.contains(event.target)) {
-              dropdown.classList.add('hidden');
-            }
-          });
+        const loadEl = document.querySelector('#load');
+        // // 🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥
+        // // The Firebase SDK is initialized and available here!
+        //
+        // firebase.auth().onAuthStateChanged(user => { });
+        // firebase.database().ref('/path/to/ref').on('value', snapshot => { });
+        // firebase.firestore().doc('/foo/bar').get().then(() => { });
+        // firebase.functions().httpsCallable('yourFunction')().then(() => { });
+        // firebase.messaging().requestPermission().then(() => { });
+        // firebase.storage().ref('/path/to/ref').getDownloadURL().then(() => { });
+        // firebase.analytics(); // call to activate
+        // firebase.analytics().logEvent('tutorial_completed');
+        // firebase.performance(); // call to activate
+        //
+        // // 🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥
+
+        try {
+          let app = firebase.app();
+          let features = [
+            'auth', 
+            'database', 
+            'firestore',
+            'functions',
+            'messaging', 
+            'storage', 
+            'analytics', 
+            'remoteConfig',
+            'performance',
+          ].filter(feature => typeof app[feature] === 'function');
+          loadEl.textContent = `Firebase SDK loaded with ${features.join(', ')}`;
+        } catch (e) {
+          console.error(e);
+          loadEl.textContent = 'Error loading the Firebase SDK, check the console.';
         }
       });
     </script>
-    <script>
-    // Modal open/close logic
-    const registerModal = document.getElementById('registerModal');
-    const openRegisterBtn = document.querySelector('a.bg-[#FFA500]');
-    const closeRegisterBtn = document.getElementById('closeRegisterModal');
-    if (openRegisterBtn && registerModal && closeRegisterBtn) {
-      openRegisterBtn.addEventListener('click', function(e) {
-        e.preventDefault();
-        registerModal.classList.remove('hidden');
-      });
-      closeRegisterBtn.addEventListener('click', function() {
-        registerModal.classList.add('hidden');
-      });
-      window.addEventListener('click', function(e) {
-        if (e.target === registerModal) {
-          registerModal.classList.add('hidden');
-        }
-      });
-    }
-    </script>
-    <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', function() {
-          navigator.serviceWorker.register('/service-worker.js');
-        });
-      }
-    </script>
-    <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-messaging-compat.js"></script>
-    <script>
-      // Initialize Firebase (replace with your config)
-      const firebaseConfig = {
-        apiKey: "YOUR_API_KEY",
-        authDomain: "YOUR_AUTH_DOMAIN",
-        projectId: "YOUR_PROJECT_ID",
-        messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-        appId: "YOUR_APP_ID"
-      };
-      firebase.initializeApp(firebaseConfig);
-      const messaging = firebase.messaging();
-
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/firebase-messaging-sw.js')
-          .then(function(registration) {
-            messaging.useServiceWorker(registration);
-          });
-      }
-
-      // Request permission and get token
-      function requestNotificationPermission() {
-        Notification.requestPermission().then(function(permission) {
-          if (permission === 'granted') {
-            messaging.getToken({ vapidKey: 'YOUR_VAPID_KEY' }).then(function(currentToken) {
-              if (currentToken) {
-                // TODO: Save this token to Firestore for the current user
-                console.log('FCM Token:', currentToken);
-              }
-            });
-          }
-        });
-      }
-      // Call this function on login or user action
-      // requestNotificationPermission();
-
-      // Handle foreground messages
-      messaging.onMessage(function(payload) {
-        if (payload.notification) {
-          alert(payload.notification.title + '\n' + payload.notification.body);
-        }
-      });
-    </script>
-</body>
-</html> 
+  </body>
+</html>

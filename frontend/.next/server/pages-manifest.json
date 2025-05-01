@@ -1,0 +1,12 @@
+{
+  "/_app": "pages/_app.js",
+  "/_error": "pages/_error.js",
+  "/api/auth/register": "pages/api/auth/register.js",
+  "/dashboard/trucker": "pages/dashboard/trucker.js",
+  "/": "pages/index.js",
+  "/signup": "pages/signup.js",
+  "/dashboard/property-owner": "pages/dashboard/property-owner.js",
+  "/signup/property-owner": "pages/signup/property-owner.js",
+  "/signup/trucker": "pages/signup/trucker.js",
+  "/_document": "pages/_document.js"
+}

@@ -1,15 +1,6 @@
-import { auth, db } from './firebase.js';
-import {
-    collection,
-    doc,
-    getDoc,
-    updateDoc,
-    arrayUnion,
-    arrayRemove,
-    query,
-    where,
-    getDocs
-} from 'firebase/firestore';
+import { db } from './lib/firebase'; // or '../lib/firebase' depending on the file location
+import { collection, doc, getDoc, updateDoc, query, where, getDocs } from 'firebase/firestore';
+
 
 // DOM Elements
 let vehiclesList;
