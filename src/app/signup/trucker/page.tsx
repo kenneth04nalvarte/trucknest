@@ -6,6 +6,8 @@ import { useAuth } from '../../context/AuthContext'
 import { db } from '@/config/firebase'
 import { doc, setDoc } from 'firebase/firestore'
 import AddressAutocomplete from '../../components/AddressAutocomplete'
+import { createUserWithEmailAndPassword } from 'firebase/auth'
+import { auth } from '@/config/firebase'
 
 interface TruckerFormData {
   firstName: string
@@ -49,51 +51,45 @@ export default function TruckerSignUp() {
     setFormData(prev => ({ ...prev, address, lat, lng }))
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
 
     if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match')
-      return
+      setError('Passwords do not match');
+      return;
     }
 
     try {
-      setLoading(true)
-      // Create user in Firebase Auth
-      const userCredential = await signUp(formData.email, formData.password)
-      
-      // Create user document in Firestore
-      await setDoc(doc(db, 'users', userCredential.user.uid), {
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        email: formData.email,
-        phoneNumber: formData.phoneNumber,
-        companyName: formData.companyName,
-        address: formData.address,
-        location: {
-          lat: formData.lat,
-          lng: formData.lng
-        },
-        licenseNumber: formData.licenseNumber,
-        role: 'trucker',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      })
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        formData.email,
+        formData.password
+      );
+      const user = userCredential.user;
 
-      router.push('/trucker-dashboard')
+      await setDoc(doc(db, 'users', user.uid), {
+        ...formData,
+        role: 'trucker',
+        verificationStatus: 'pending',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      router.push('/dashboard');
     } catch (error) {
-      console.error('Error during signup:', error)
-      setError('Failed to create account. Please try again.')
+      console.error('Error during signup:', error);
+      setError('Failed to create account');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
       <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
-        <form className="space-y-6" onSubmit={handleSubmit}>
+        <form className="space-y-6" onSubmit={handleSignup}>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label htmlFor="firstName" className="block text-sm font-medium text-gray-700">

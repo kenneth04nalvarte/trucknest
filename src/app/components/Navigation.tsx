@@ -2,9 +2,29 @@
 
 import Link from 'next/link'
 import { useAuth } from '../context/AuthContext'
+import { CustomUser } from '@/types/user'
+import { useRouter } from 'next/navigation'
+import { useState } from 'react'
+
+type AuthContextValue = {
+  user: CustomUser | null;
+  loading: boolean;
+  signOut: () => Promise<void>;
+}
 
 export default function Navigation() {
-  const { user, signOut } = useAuth()
+  const { user, signOut } = useAuth() as unknown as AuthContextValue
+  const router = useRouter()
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
+
+  const handleSignOut = async () => {
+    try {
+      await signOut()
+      router.push('/')
+    } catch (error) {
+      console.error('Error signing out:', error)
+    }
+  }
 
   return (
     <nav className="bg-white shadow-lg sticky top-0 z-50">
@@ -41,7 +61,7 @@ export default function Navigation() {
             <div className="ml-6">
               {user ? (
                 <button
-                  onClick={() => signOut()}
+                  onClick={handleSignOut}
                   className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md text-sm font-medium"
                 >
                   Sign Out

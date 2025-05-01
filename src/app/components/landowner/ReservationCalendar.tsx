@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { Calendar, dateFnsLocalizer } from 'react-big-calendar'
 import format from 'date-fns/format'
 import parse from 'date-fns/parse'
-import startOfWeek from 'date-fns/startOfWeek'
+import { startOfWeek as startOfWeekFn } from 'date-fns'
 import getDay from 'date-fns/getDay'
 import 'react-big-calendar/lib/css/react-big-calendar.css'
 import { db } from '@/config/firebase'
@@ -23,67 +23,104 @@ const locales = {
 const localizer = dateFnsLocalizer({
   format,
   parse,
-  startOfWeek,
+  startOfWeek: startOfWeekFn,
   getDay,
   locales
 })
 
 interface Booking {
-  id: string
-  propertyId: string
-  startTime: Date
-  endTime: Date
-  vehicleType: string
-  status: 'confirmed' | 'pending' | 'cancelled'
-  totalPrice: number
+  id: string;
+  startTime: Date;
+  endTime: Date;
+  status: 'pending' | 'confirmed' | 'cancelled';
+  totalPrice: number;
+  vehicleType: string;
+  userId: string;
+  propertyId: string;
+}
+
+interface Reservation {
+  id: string;
+  propertyId: string;
+  userId: string;
+  startDate: Date;
+  endDate: Date;
+  status: 'pending' | 'confirmed' | 'cancelled';
+  totalPrice: number;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 interface CalendarEvent {
-  id: string
-  title: string
-  start: Date
-  end: Date
-  vehicleType: string
-  status: Booking['status']
+  id: string;
+  title: string;
+  start: Date;
+  end: Date;
+  vehicleType: string;
+  status: Reservation['status'];
+  resourceId?: string;
 }
 
 interface ReservationCalendarProps {
-  propertyId: string
-  totalSpaces: number
+  propertyId: string;
+  totalSpaces: number;
+  onError?: (error: Error) => void;
+  onEventClick?: (event: CalendarEvent) => void;
+  className?: string;
 }
 
-export default function ReservationCalendar({ propertyId, totalSpaces }: ReservationCalendarProps) {
-  const [events, setEvents] = useState<CalendarEvent[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [view, setView] = useState<'month' | 'week' | 'day'>('week')
-  const [date, setDate] = useState(new Date())
-  const [availabilityMap, setAvailabilityMap] = useState<Map<string, number>>(new Map())
+interface AvailabilityMap {
+  [key: string]: number;
+}
+
+export default function ReservationCalendar({ 
+  propertyId, 
+  totalSpaces, 
+  onError,
+  onEventClick,
+  className 
+}: ReservationCalendarProps) {
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [view, setView] = useState<'month' | 'week' | 'day'>('week');
+  const [date, setDate] = useState(new Date());
+  const [availabilityMap, setAvailabilityMap] = useState<AvailabilityMap>({});
 
   useEffect(() => {
-    fetchBookings()
-  }, [propertyId, date, view])
+    fetchBookings();
+  }, [propertyId, date, view]);
+
+  const generateWeekDays = (date: Date): Date[] => {
+    const startDate = startOfWeekFn(date);
+    return Array.from({ length: 7 }, (_, i) => {
+      const day = new Date(startDate);
+      day.setDate(day.getDate() + i);
+      return day;
+    });
+  };
 
   const fetchBookings = async () => {
     try {
-      setLoading(true)
+      setLoading(true);
+      setError(null);
       
       // Calculate view range
-      let startDate: Date
-      let endDate: Date
+      let startDate: Date;
+      let endDate: Date;
       
       if (view === 'month') {
-        startDate = new Date(date.getFullYear(), date.getMonth(), 1)
-        endDate = new Date(date.getFullYear(), date.getMonth() + 1, 0)
+        startDate = new Date(date.getFullYear(), date.getMonth(), 1);
+        endDate = new Date(date.getFullYear(), date.getMonth() + 1, 0);
       } else if (view === 'week') {
-        startDate = startOfWeek(date)
-        endDate = new Date(startDate)
-        endDate.setDate(startDate.getDate() + 7)
+        startDate = startOfWeekFn(date);
+        endDate = new Date(startDate);
+        endDate.setDate(startDate.getDate() + 7);
       } else {
-        startDate = new Date(date)
-        startDate.setHours(0, 0, 0, 0)
-        endDate = new Date(date)
-        endDate.setHours(23, 59, 59, 999)
+        startDate = new Date(date);
+        startDate.setHours(0, 0, 0, 0);
+        endDate = new Date(date);
+        endDate.setHours(23, 59, 59, 999);
       }
 
       const bookingsQuery = query(
@@ -91,89 +128,96 @@ export default function ReservationCalendar({ propertyId, totalSpaces }: Reserva
         where('propertyId', '==', propertyId),
         where('startTime', '>=', Timestamp.fromDate(startDate)),
         where('endTime', '<=', Timestamp.fromDate(endDate))
-      )
+      );
 
-      const snapshot = await getDocs(bookingsQuery)
-      const bookings = snapshot.docs.map(doc => ({
+      const snapshot = await getDocs(bookingsQuery);
+      const bookings: Booking[] = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
         startTime: doc.data().startTime.toDate(),
         endTime: doc.data().endTime.toDate()
-      })) as Booking[]
+      })) as Booking[];
 
       // Convert bookings to calendar events
-      const calendarEvents = bookings.map(booking => ({
+      const calendarEvents: CalendarEvent[] = bookings.map(booking => ({
         id: booking.id,
         title: `${booking.vehicleType} (${booking.status})`,
         start: booking.startTime,
         end: booking.endTime,
         vehicleType: booking.vehicleType,
         status: booking.status
-      }))
+      }));
 
-      setEvents(calendarEvents)
+      setEvents(calendarEvents);
 
       // Calculate availability for each hour
-      const availability = new Map<string, number>()
-      const hourMs = 60 * 60 * 1000
+      const availability: AvailabilityMap = {};
+      const hourMs = 60 * 60 * 1000;
       
       for (let time = startDate.getTime(); time <= endDate.getTime(); time += hourMs) {
-        const dateKey = new Date(time).toISOString()
+        const dateKey = new Date(time).toISOString();
         const activeBookings = bookings.filter(booking => 
           booking.startTime.getTime() <= time &&
           booking.endTime.getTime() > time &&
           booking.status === 'confirmed'
-        )
-        availability.set(dateKey, totalSpaces - activeBookings.length)
+        );
+        availability[dateKey] = totalSpaces - activeBookings.length;
       }
 
-      setAvailabilityMap(availability)
-      setLoading(false)
+      setAvailabilityMap(availability);
     } catch (err) {
-      console.error('Error fetching bookings:', err)
-      setError('Failed to load bookings')
-      setLoading(false)
+      const error = err as Error;
+      console.error('Error fetching bookings:', error);
+      setError('Failed to load bookings');
+      onError?.(error);
+    } finally {
+      setLoading(false);
     }
-  }
+  };
 
   const eventStyleGetter = (event: CalendarEvent) => {
-    let backgroundColor = '#3B82F6' // blue for confirmed
-    if (event.status === 'pending') {
-      backgroundColor = '#F59E0B' // yellow for pending
-    } else if (event.status === 'cancelled') {
-      backgroundColor = '#EF4444' // red for cancelled
-    }
+    const statusColors: Record<Reservation['status'], string> = {
+      confirmed: '#3B82F6', // blue
+      pending: '#F59E0B', // yellow
+      cancelled: '#EF4444' // red
+    };
 
     return {
       style: {
-        backgroundColor,
+        backgroundColor: statusColors[event.status],
         borderRadius: '4px',
         opacity: 0.8,
         color: 'white',
         border: '0',
         display: 'block'
       }
-    }
-  }
+    };
+  };
 
   const slotPropGetter = (date: Date) => {
-    const dateKey = date.toISOString()
-    const available = availabilityMap.get(dateKey) || 0
-    const percentage = (available / totalSpaces) * 100
+    const dateKey = date.toISOString();
+    const available = availabilityMap[dateKey] || 0;
+    const percentage = (available / totalSpaces) * 100;
 
-    let backgroundColor = '#f0fdf4' // green-50 for high availability
+    const availabilityColors: Record<string, string> = {
+      high: '#f0fdf4', // green-50
+      medium: '#fefce8', // yellow-50
+      low: '#fef2f2' // red-50
+    };
+
+    let backgroundColor = availabilityColors.high;
     if (percentage < 30) {
-      backgroundColor = '#fef2f2' // red-50 for low availability
+      backgroundColor = availabilityColors.low;
     } else if (percentage < 70) {
-      backgroundColor = '#fefce8' // yellow-50 for medium availability
+      backgroundColor = availabilityColors.medium;
     }
 
     return {
       style: {
         backgroundColor
       }
-    }
-  }
+    };
+  };
 
   if (loading) {
     return (

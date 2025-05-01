@@ -6,28 +6,34 @@ import { useAuth } from '../../context/AuthContext'
 import { db } from '@/config/firebase'
 import { doc, setDoc } from 'firebase/firestore'
 import AddressAutocomplete from '../../components/AddressAutocomplete'
+import { createUserWithEmailAndPassword } from 'firebase/auth'
+import { auth } from '@/config/firebase'
 
-interface PropertyOwnerFormData {
-  firstName: string
-  lastName: string
-  email: string
-  password: string
-  confirmPassword: string
-  phoneNumber: string
-  businessName: string
-  address: string
-  lat: number
-  lng: number
-  taxId: string
-  businessType: 'individual' | 'company'
+interface SignupFormData {
+  firstName: string;
+  lastName: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
+  phoneNumber: string;
+  businessName: string;
+  address: {
+    street: string;
+    city: string;
+    state: string;
+    zipCode: string;
+    country: string;
+  };
+  taxId: string;
+  businessType: string;
 }
 
-export default function PropertyOwnerSignUp() {
+export default function PropertyOwnerSignup() {
   const router = useRouter()
   const { signUp } = useAuth()
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [formData, setFormData] = useState<PropertyOwnerFormData>({
+  const [formData, setFormData] = useState<SignupFormData>({
     firstName: '',
     lastName: '',
     email: '',
@@ -35,20 +41,38 @@ export default function PropertyOwnerSignUp() {
     confirmPassword: '',
     phoneNumber: '',
     businessName: '',
-    address: '',
-    lat: 0,
-    lng: 0,
+    address: {
+      street: '',
+      city: '',
+      state: '',
+      zipCode: '',
+      country: '',
+    },
     taxId: '',
-    businessType: 'individual',
+    businessType: '',
   })
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target
-    setFormData(prev => ({ ...prev, [name]: value }))
+    const { name, value } = e.target;
+    if (name === 'firstName' || name === 'lastName' || name === 'email' || 
+        name === 'password' || name === 'confirmPassword' || name === 'phoneNumber' ||
+        name === 'businessName' || name === 'taxId' || name === 'businessType') {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
   }
 
   const handleAddressSelect = (address: string, lat: number, lng: number) => {
-    setFormData(prev => ({ ...prev, address, lat, lng }))
+    const [street, city, state, zipCode, country] = address.split(', ');
+    setFormData(prev => ({
+      ...prev,
+      address: {
+        street,
+        city,
+        state,
+        zipCode,
+        country,
+      },
+    }));
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -63,29 +87,23 @@ export default function PropertyOwnerSignUp() {
     try {
       setLoading(true)
       // Create user in Firebase Auth
-      const userCredential = await signUp(formData.email, formData.password)
-      
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        formData.email,
+        formData.password
+      )
+      const user = userCredential.user
+
       // Create user document in Firestore
-      await setDoc(doc(db, 'users', userCredential.user.uid), {
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        email: formData.email,
-        phoneNumber: formData.phoneNumber,
-        businessName: formData.businessName,
-        address: formData.address,
-        location: {
-          lat: formData.lat,
-          lng: formData.lng
-        },
-        taxId: formData.taxId,
-        businessType: formData.businessType,
-        role: 'property-owner',
+      await setDoc(doc(db, 'users', user.uid), {
+        ...formData,
+        role: 'landowner',
         verificationStatus: 'pending',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
       })
 
-      router.push('/landowner-dashboard')
+      router.push('/dashboard')
     } catch (error) {
       console.error('Error during signup:', error)
       setError('Failed to create account. Please try again.')
@@ -107,10 +125,11 @@ export default function PropertyOwnerSignUp() {
                 id="firstName"
                 name="firstName"
                 type="text"
-                required
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                 value={formData.firstName}
                 onChange={handleInputChange}
+                className="mt-1 block w-full border rounded-md shadow-sm py-2 px-3"
+                placeholder="First Name"
+                required
               />
             </div>
             <div>
@@ -121,12 +140,29 @@ export default function PropertyOwnerSignUp() {
                 id="lastName"
                 name="lastName"
                 type="text"
-                required
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                 value={formData.lastName}
                 onChange={handleInputChange}
+                className="mt-1 block w-full border rounded-md shadow-sm py-2 px-3"
+                placeholder="Last Name"
+                required
               />
             </div>
+          </div>
+
+          <div>
+            <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
+              Phone Number
+            </label>
+            <input
+              id="phone"
+              name="phoneNumber"
+              type="tel"
+              value={formData.phoneNumber}
+              onChange={handleInputChange}
+              className="mt-1 block w-full border rounded-md shadow-sm py-2 px-3"
+              placeholder="Phone Number"
+              required
+            />
           </div>
 
           <div>
@@ -138,10 +174,10 @@ export default function PropertyOwnerSignUp() {
               name="email"
               type="email"
               autoComplete="email"
-              required
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
               value={formData.email}
               onChange={handleInputChange}
+              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              required
             />
           </div>
 
@@ -153,10 +189,10 @@ export default function PropertyOwnerSignUp() {
               id="password"
               name="password"
               type="password"
-              required
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
               value={formData.password}
               onChange={handleInputChange}
+              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              required
             />
           </div>
 
@@ -168,57 +204,10 @@ export default function PropertyOwnerSignUp() {
               id="confirmPassword"
               name="confirmPassword"
               type="password"
-              required
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
               value={formData.confirmPassword}
               onChange={handleInputChange}
-            />
-          </div>
-
-          <div>
-            <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-700">
-              Phone Number
-            </label>
-            <input
-              id="phoneNumber"
-              name="phoneNumber"
-              type="tel"
-              required
               className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-              value={formData.phoneNumber}
-              onChange={handleInputChange}
-            />
-          </div>
-
-          <div>
-            <label htmlFor="businessType" className="block text-sm font-medium text-gray-700">
-              Business Type
-            </label>
-            <select
-              id="businessType"
-              name="businessType"
               required
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-              value={formData.businessType}
-              onChange={handleInputChange}
-            >
-              <option value="individual">Individual</option>
-              <option value="company">Company</option>
-            </select>
-          </div>
-
-          <div>
-            <label htmlFor="businessName" className="block text-sm font-medium text-gray-700">
-              Business Name
-            </label>
-            <input
-              id="businessName"
-              name="businessName"
-              type="text"
-              required
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-              value={formData.businessName}
-              onChange={handleInputChange}
             />
           </div>
 
@@ -230,21 +219,6 @@ export default function PropertyOwnerSignUp() {
               onAddressSelect={handleAddressSelect}
               placeholder="Enter your business address"
               className="mt-1"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="taxId" className="block text-sm font-medium text-gray-700">
-              Tax ID / EIN
-            </label>
-            <input
-              id="taxId"
-              name="taxId"
-              type="text"
-              required
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-              value={formData.taxId}
-              onChange={handleInputChange}
             />
           </div>
 

@@ -2,29 +2,27 @@
 
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { User } from 'firebase/auth'
 import { useAuth } from '@/context/AuthContext'
 import LanguageManager from '@/components/admin/LanguageManager'
 
+interface CustomUser extends User {
+  role?: string;
+}
+
 export default function AdminLanguagesPage() {
-  const { user, loading } = useAuth()
   const router = useRouter()
+  const { user, loading } = useAuth()
+  const customUser = user as CustomUser
 
   useEffect(() => {
-    if (!loading && (!user || user.role !== 'admin')) {
+    if (!loading && (!customUser || customUser.role !== 'admin')) {
       router.push('/signin')
     }
-  }, [user, loading, router])
+  }, [customUser, loading, router])
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    )
-  }
-
-  if (!user || user.role !== 'admin') {
-    return null
+  if (loading || !customUser || customUser.role !== 'admin') {
+    return <div>Loading...</div>
   }
 
   return (

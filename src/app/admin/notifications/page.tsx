@@ -2,18 +2,24 @@
 
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { User } from 'firebase/auth'
 import { useAuth } from '@/context/AuthContext'
 import NotificationManager from '@/components/admin/NotificationManager'
 
+interface CustomUser extends User {
+  role?: string
+}
+
 export default function AdminNotificationsPage() {
-  const { user, loading } = useAuth()
   const router = useRouter()
+  const { user, loading } = useAuth()
+  const customUser = user as CustomUser
 
   useEffect(() => {
-    if (!loading && (!user || user.role !== 'admin')) {
+    if (!loading && (!customUser || customUser.role !== 'admin')) {
       router.push('/signin')
     }
-  }, [user, loading, router])
+  }, [customUser, loading, router])
 
   if (loading) {
     return (
@@ -23,7 +29,7 @@ export default function AdminNotificationsPage() {
     )
   }
 
-  if (!user || user.role !== 'admin') {
+  if (!customUser || customUser.role !== 'admin') {
     return null
   }
 

@@ -26,6 +26,7 @@ import { saveAs } from 'file-saver'
 import Papa from 'papaparse'
 import jsPDF from 'jspdf'
 import 'jspdf-autotable'
+import { useAuth } from '@/context/AuthContext'
 
 ChartJS.register(
   CategoryScale,
@@ -46,6 +47,7 @@ interface Booking {
   vehicleType: string
   status: 'confirmed' | 'pending' | 'cancelled'
   totalPrice: number
+  userId: string
 }
 
 interface VehicleTypeAnalytics {
@@ -53,43 +55,134 @@ interface VehicleTypeAnalytics {
   totalBookings: number
   revenue: number
   averageStayDuration: number
+  percentage: number
 }
 
 interface HourlyAnalytics {
   hour: number
   bookings: number
   revenue: number
+  occupancyRate: number
 }
 
 interface PropertyAnalyticsProps {
   propertyId: string
   basePrice: number
+  onError?: (error: Error) => void
+  className?: string
 }
 
-export default function PropertyAnalytics({ propertyId, basePrice }: PropertyAnalyticsProps) {
-  const [bookings, setBookings] = useState<Booking[]>([])
-  const [vehicleAnalytics, setVehicleAnalytics] = useState<VehicleTypeAnalytics[]>([])
-  const [hourlyAnalytics, setHourlyAnalytics] = useState<HourlyAnalytics[]>([])
+interface Property {
+  id: string
+  name: string
+  ownerId: string
+  totalSpaces: number
+}
+
+interface AnalyticsData {
+  bookings: Booking[]
+  totalRevenue: number
+  occupancyRate: number
+  vehicleTypeDistribution: Record<string, number>
+  hourlyAnalytics: HourlyAnalytics[]
+  lastUpdated: Date
+}
+
+interface PricingSuggestion {
+  basePrice: number
+  peakHours: Array<{
+    hour: number
+    price: number
+    reason: string
+  }>
+  offPeakDiscount: number
+  confidence: number
+}
+
+declare module 'jspdf' {
+  interface jsPDF {
+    autoTable: (options: {
+      head: string[][]
+      body: string[][]
+      theme?: string
+      styles?: Record<string, unknown>
+      headStyles?: Record<string, unknown>
+      bodyStyles?: Record<string, unknown>
+    }) => jsPDF
+  }
+}
+
+export default function PropertyAnalytics({ 
+  propertyId, 
+  basePrice, 
+  onError,
+  className 
+}: PropertyAnalyticsProps) {
+  const { user } = useAuth()
+  const [properties, setProperties] = useState<Property[]>([])
+  const [selectedProperty, setSelectedProperty] = useState<string>(propertyId)
+  const [data, setData] = useState<AnalyticsData>({
+    bookings: [],
+    totalRevenue: 0,
+    occupancyRate: 0,
+    vehicleTypeDistribution: {},
+    hourlyAnalytics: [],
+    lastUpdated: new Date()
+  })
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const [error, setError] = useState<string | null>(null)
   const [dateRange, setDateRange] = useState<'week' | 'month' | 'year'>('month')
-  const [pricingSuggestions, setPricingSuggestions] = useState<{
-    basePrice: number
-    peakHours: { hour: number; price: number }[]
-    offPeakDiscount: number
-  }>({
+  const [pricingSuggestions, setPricingSuggestions] = useState<PricingSuggestion>({
     basePrice: 0,
     peakHours: [],
-    offPeakDiscount: 0
+    offPeakDiscount: 0,
+    confidence: 0
   })
 
   useEffect(() => {
-    fetchAnalytics()
-  }, [propertyId, dateRange])
+    if (!user) return
+    fetchProperties()
+  }, [user])
+
+  useEffect(() => {
+    if (selectedProperty) {
+      fetchAnalytics()
+    }
+  }, [selectedProperty, dateRange])
+
+  const fetchProperties = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      const propertiesRef = collection(db, 'properties')
+      const q = query(propertiesRef, where('ownerId', '==', user?.uid))
+      const snapshot = await getDocs(q)
+      
+      const propertiesData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        totalSpaces: doc.data().totalSpaces || 100
+      })) as Property[]
+      
+      setProperties(propertiesData)
+      if (propertiesData.length > 0) {
+        setSelectedProperty(propertiesData[0].id)
+      }
+    } catch (err) {
+      const error = err as Error
+      console.error('Error fetching properties:', error)
+      setError('Failed to load properties')
+      onError?.(error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const fetchAnalytics = async () => {
     try {
       setLoading(true)
+      setError(null)
 
       const now = new Date()
       let startDate: Date
@@ -104,7 +197,7 @@ export default function PropertyAnalytics({ propertyId, basePrice }: PropertyAna
 
       const bookingsQuery = query(
         collection(db, 'bookings'),
-        where('propertyId', '==', propertyId),
+        where('propertyId', '==', selectedProperty),
         where('startTime', '>=', Timestamp.fromDate(startDate)),
         where('status', '==', 'confirmed'),
         orderBy('startTime', 'asc')
@@ -118,7 +211,48 @@ export default function PropertyAnalytics({ propertyId, basePrice }: PropertyAna
         endTime: doc.data().endTime.toDate()
       })) as Booking[]
 
-      setBookings(bookingData)
+      const totalRevenue = bookingData.reduce((sum, booking) => sum + booking.totalPrice, 0)
+      
+      const vehicleTypeDistribution = bookingData.reduce((acc, booking) => {
+        acc[booking.vehicleType] = (acc[booking.vehicleType] || 0) + 1
+        return acc
+      }, {} as Record<string, number>)
+
+      // Calculate hourly analytics
+      const hourlyAnalytics: HourlyAnalytics[] = Array.from({ length: 24 }, (_, hour) => {
+        const hourBookings = bookingData.filter(booking => {
+          const startHour = booking.startTime.getHours()
+          const endHour = booking.endTime.getHours()
+          return startHour <= hour && endHour > hour
+        })
+
+        return {
+          hour,
+          bookings: hourBookings.length,
+          revenue: hourBookings.reduce((sum, booking) => sum + booking.totalPrice, 0),
+          occupancyRate: (hourBookings.length / (properties.find(p => p.id === selectedProperty)?.totalSpaces || 100)) * 100
+        }
+      })
+
+      // Calculate occupancy rate
+      const activeBookings = bookingData.filter(booking => {
+        const start = booking.startTime
+        const end = booking.endTime
+        return start <= now && end >= now
+      })
+
+      const selectedPropertyData = properties.find(p => p.id === selectedProperty)
+      const totalSpots = selectedPropertyData?.totalSpaces || 100
+      const occupancyRate = (activeBookings.length / totalSpots) * 100
+
+      setData({
+        bookings: bookingData,
+        totalRevenue,
+        occupancyRate,
+        vehicleTypeDistribution,
+        hourlyAnalytics,
+        lastUpdated: new Date()
+      })
 
       // Process vehicle type analytics
       const vehicleTypes = new Map<string, VehicleTypeAnalytics>()
@@ -127,7 +261,8 @@ export default function PropertyAnalytics({ propertyId, basePrice }: PropertyAna
           type: booking.vehicleType,
           totalBookings: 0,
           revenue: 0,
-          averageStayDuration: 0
+          averageStayDuration: 0,
+          percentage: 0
         }
 
         const duration = (booking.endTime.getTime() - booking.startTime.getTime()) / (60 * 60 * 1000)
@@ -137,262 +272,191 @@ export default function PropertyAnalytics({ propertyId, basePrice }: PropertyAna
           (existing.averageStayDuration * (existing.totalBookings - 1) + duration) /
           existing.totalBookings
         )
+        existing.percentage = (existing.totalBookings / bookingData.length) * 100
 
         vehicleTypes.set(booking.vehicleType, existing)
       })
 
-      setVehicleAnalytics(Array.from(vehicleTypes.values()))
-
-      // Process hourly analytics
-      const hourlyData = new Array(24).fill(null).map((_, hour) => ({
-        hour,
-        bookings: 0,
-        revenue: 0
-      }))
-
-      bookingData.forEach(booking => {
-        const hour = booking.startTime.getHours()
-        hourlyData[hour].bookings++
-        hourlyData[hour].revenue += booking.totalPrice
-      })
-
-      setHourlyAnalytics(hourlyData)
-
-      // Generate pricing suggestions
-      const peakHours = hourlyData
-        .filter(data => data.bookings > 0)
-        .sort((a, b) => b.bookings - a.bookings)
-        .slice(0, 3)
-        .map(data => ({
-          hour: data.hour,
-          price: Math.round(basePrice * 1.3) // 30% increase for peak hours
+      // Calculate pricing suggestions
+      const peakHours = hourlyAnalytics
+        .filter(hour => hour.occupancyRate > 70)
+        .map(hour => ({
+          hour: hour.hour,
+          price: Math.round(basePrice * 1.2),
+          reason: 'High occupancy rate'
         }))
-
-      const avgBookingsPerHour = hourlyData.reduce((sum, data) => sum + data.bookings, 0) / 24
-      const offPeakDiscount = avgBookingsPerHour < 1 ? 20 : 10 // Higher discount if low utilization
 
       setPricingSuggestions({
         basePrice: Math.round(
-          basePrice * (1 + (avgBookingsPerHour > 2 ? 0.15 : -0.1))
+          basePrice * (1 + (occupancyRate > 70 ? 0.15 : -0.1))
         ),
         peakHours,
-        offPeakDiscount
+        offPeakDiscount: occupancyRate < 30 ? 0.1 : 0,
+        confidence: Math.min(occupancyRate / 100, 1)
       })
 
-      setLoading(false)
     } catch (err) {
-      console.error('Error fetching analytics:', err)
+      const error = err as Error
+      console.error('Error fetching analytics:', error)
       setError('Failed to load analytics')
+      onError?.(error)
+    } finally {
       setLoading(false)
     }
   }
 
   const exportToCSV = () => {
-    const data = bookings.map(booking => ({
-      Date: booking.startTime.toLocaleDateString(),
-      'Start Time': booking.startTime.toLocaleTimeString(),
-      'End Time': booking.endTime.toLocaleTimeString(),
+    const csvData = data.bookings.map(booking => ({
+      ID: booking.id,
       'Vehicle Type': booking.vehicleType,
-      'Total Price': booking.totalPrice,
-      Status: booking.status
+      'Start Date': booking.startTime.toLocaleDateString(),
+      'End Date': booking.endTime.toLocaleDateString(),
+      Price: booking.totalPrice,
+      Status: booking.status,
+      'User ID': booking.userId
     }))
 
-    const csv = Papa.unparse(data)
+    const csv = Papa.unparse(csvData)
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
-    saveAs(blob, `bookings_${dateRange}_${new Date().toISOString()}.csv`)
+    saveAs(blob, `property-analytics-${selectedProperty}.csv`)
   }
 
   const exportToPDF = () => {
     const doc = new jsPDF()
+    const property = properties.find(p => p.id === selectedProperty)
 
-    // Add title
     doc.setFontSize(16)
-    doc.text('Property Analytics Report', 20, 20)
+    doc.text(`Property Analytics: ${property?.name || selectedProperty}`, 14, 20)
 
-    // Add date range
     doc.setFontSize(12)
-    doc.text(`Date Range: ${dateRange}`, 20, 30)
+    doc.text([
+      `Total Revenue: $${data.totalRevenue.toFixed(2)}`,
+      `Current Occupancy Rate: ${data.occupancyRate.toFixed(1)}%`,
+      `Total Bookings: ${data.bookings.length}`,
+    ], 14, 30)
 
-    // Add vehicle type analytics
-    doc.text('Vehicle Type Analytics', 20, 45)
-    const vehicleData = vehicleAnalytics.map(va => [
-      va.type,
-      va.totalBookings.toString(),
-      `$${va.revenue.toFixed(2)}`,
-      `${va.averageStayDuration.toFixed(1)} hours`
-    ])
-    
+    const vehicleData = Object.entries(data.vehicleTypeDistribution).map(([type, count]) => {
+      const typeBookings = data.bookings.filter(b => b.vehicleType === type)
+      const revenue = typeBookings.reduce((sum, b) => sum + b.totalPrice, 0)
+      const avgDuration = typeBookings.reduce((sum, b) => {
+        const duration = b.endTime.getTime() - b.startTime.getTime()
+        return sum + duration
+      }, 0) / (count * 86400000) // Convert to days
+
+      return [
+        type,
+        count.toString(),
+        `$${revenue.toFixed(2)}`,
+        `${(avgDuration / 86400000).toFixed(1)} days`,
+      ]
+    })
+
     doc.autoTable({
       head: [['Vehicle Type', 'Total Bookings', 'Revenue', 'Avg. Duration']],
       body: vehicleData,
-      startY: 50
+      startY: 50,
     })
 
-    // Add pricing suggestions
-    doc.text('Pricing Suggestions', 20, doc.autoTable.previous.finalY + 15)
-    doc.text(`Suggested Base Price: $${pricingSuggestions.basePrice}`, 20, doc.autoTable.previous.finalY + 25)
-    doc.text(`Off-Peak Discount: ${pricingSuggestions.offPeakDiscount}%`, 20, doc.autoTable.previous.finalY + 35)
-
-    // Save the PDF
-    doc.save(`analytics_${dateRange}_${new Date().toISOString()}.pdf`)
+    doc.save(`property-analytics-${selectedProperty}.pdf`)
   }
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-48">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <div className="p-4">
+        <div className="animate-pulse">
+          <div className="h-8 bg-gray-200 rounded w-1/4 mb-6"></div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="h-32 bg-gray-200 rounded"></div>
+            <div className="h-32 bg-gray-200 rounded"></div>
+            <div className="h-32 bg-gray-200 rounded"></div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="p-4">
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+          {error}
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
-      {/* Date Range Selector */}
-      <div className="flex justify-between items-center">
-        <div className="space-x-2">
-          <button
-            onClick={() => setDateRange('week')}
-            className={`px-3 py-1 rounded ${
-              dateRange === 'week' ? 'bg-blue-600 text-white' : 'bg-gray-100'
-            }`}
+    <div className="p-4">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Property Analytics</h1>
+        <div className="flex gap-4">
+          <select
+            value={selectedProperty}
+            onChange={(e) => setSelectedProperty(e.target.value)}
+            className="border rounded-md px-3 py-2"
           >
-            Week
-          </button>
-          <button
-            onClick={() => setDateRange('month')}
-            className={`px-3 py-1 rounded ${
-              dateRange === 'month' ? 'bg-blue-600 text-white' : 'bg-gray-100'
-            }`}
-          >
-            Month
-          </button>
-          <button
-            onClick={() => setDateRange('year')}
-            className={`px-3 py-1 rounded ${
-              dateRange === 'year' ? 'bg-blue-600 text-white' : 'bg-gray-100'
-            }`}
-          >
-            Year
-          </button>
-        </div>
-        <div className="space-x-2">
+            {properties.map((property) => (
+              <option key={property.id} value={property.id}>
+                {property.name}
+              </option>
+            ))}
+          </select>
           <button
             onClick={exportToCSV}
-            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+            className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
           >
             Export CSV
           </button>
           <button
             onClick={exportToPDF}
-            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
           >
             Export PDF
           </button>
         </div>
       </div>
 
-      {/* Vehicle Type Analytics */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-lg font-medium mb-4">Vehicle Type Distribution</h3>
-        <div className="h-80">
-          <Bar
-            data={{
-              labels: vehicleAnalytics.map(va => va.type),
-              datasets: [
-                {
-                  label: 'Total Bookings',
-                  data: vehicleAnalytics.map(va => va.totalBookings),
-                  backgroundColor: 'rgba(59, 130, 246, 0.5)'
-                },
-                {
-                  label: 'Revenue ($)',
-                  data: vehicleAnalytics.map(va => va.revenue),
-                  backgroundColor: 'rgba(34, 197, 94, 0.5)'
-                }
-              ]
-            }}
-            options={{
-              responsive: true,
-              scales: {
-                y: {
-                  beginAtZero: true
-                }
-              }
-            }}
-          />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-lg font-semibold mb-2">Total Revenue</h2>
+          <p className="text-3xl font-bold text-green-600">
+            ${data.totalRevenue.toFixed(2)}
+          </p>
+        </div>
+
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-lg font-semibold mb-2">Current Occupancy</h2>
+          <p className="text-3xl font-bold text-blue-600">
+            {data.occupancyRate.toFixed(1)}%
+          </p>
+        </div>
+
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-lg font-semibold mb-2">Total Bookings</h2>
+          <p className="text-3xl font-bold text-purple-600">
+            {data.bookings.length}
+          </p>
         </div>
       </div>
 
-      {/* Hourly Analytics */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-lg font-medium mb-4">Hourly Distribution</h3>
-        <div className="h-80">
-          <Line
-            data={{
-              labels: hourlyAnalytics.map(ha => `${ha.hour}:00`),
-              datasets: [
-                {
-                  label: 'Bookings',
-                  data: hourlyAnalytics.map(ha => ha.bookings),
-                  borderColor: 'rgb(59, 130, 246)',
-                  tension: 0.1
-                },
-                {
-                  label: 'Revenue ($)',
-                  data: hourlyAnalytics.map(ha => ha.revenue),
-                  borderColor: 'rgb(34, 197, 94)',
-                  tension: 0.1
-                }
-              ]
-            }}
-            options={{
-              responsive: true,
-              scales: {
-                y: {
-                  beginAtZero: true
-                }
-              }
-            }}
-          />
+      <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="p-4 border-b">
+          <h2 className="text-lg font-semibold">Vehicle Type Distribution</h2>
         </div>
-      </div>
-
-      {/* Pricing Suggestions */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-lg font-medium mb-4">Pricing Suggestions</h3>
-        <div className="space-y-4">
-          <div>
-            <p className="font-medium">Suggested Base Price</p>
-            <p className="text-2xl text-blue-600">${pricingSuggestions.basePrice}</p>
-            <p className="text-sm text-gray-500">
-              Based on current demand and booking patterns
-            </p>
-          </div>
-          <div>
-            <p className="font-medium">Peak Hour Pricing</p>
-            <div className="space-y-2">
-              {pricingSuggestions.peakHours.map(peak => (
-                <div key={peak.hour} className="flex items-center justify-between">
-                  <span>{peak.hour}:00</span>
-                  <span className="font-medium">${peak.price}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div>
-            <p className="font-medium">Off-Peak Discount</p>
-            <p className="text-xl text-green-600">
-              {pricingSuggestions.offPeakDiscount}% off
-            </p>
+        <div className="p-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {Object.entries(data.vehicleTypeDistribution).map(([type, count]) => (
+              <div key={type} className="border rounded-lg p-4">
+                <h3 className="font-medium">{type}</h3>
+                <p className="text-2xl font-bold text-gray-700">{count}</p>
+                <p className="text-sm text-gray-500">
+                  {((count / data.bookings.length) * 100).toFixed(1)}% of total
+                </p>
+              </div>
+            ))}
           </div>
         </div>
       </div>
-
-      {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-          {error}
-        </div>
-      )}
     </div>
   )
 } 

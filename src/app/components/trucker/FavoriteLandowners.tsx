@@ -13,9 +13,9 @@ import {
   doc,
   Timestamp
 } from 'firebase/firestore'
+import { Property } from '@/types/property'
 
-interface Landowner {
-  id: string
+interface BaseLandowner {
   name: string
   email: string
   phone: string
@@ -27,6 +27,12 @@ interface Landowner {
     name: string
     pricePerHour: number
   }[]
+}
+
+interface Landowner extends Omit<BaseLandowner, 'id'> {
+  id: string;
+  properties: Property[];
+  verificationStatus: 'verified' | 'pending' | 'unverified';
 }
 
 interface Favorite {
@@ -65,18 +71,11 @@ export default function FavoriteLandowners() {
       // Get landowner details for each favorite
       const favoritesWithDetails = await Promise.all(
         favoritesData.map(async favorite => {
-          const landownerDoc = await getDocs(
-            query(collection(db, 'users'), where('uid', '==', favorite.landownerId))
-          )
-          
-          if (!landownerDoc.empty) {
-            const landownerData = landownerDoc.docs[0].data() as Landowner
+          const landownerData = await fetchLandownerData(favorite.landownerId)
+          if (landownerData) {
             return {
               ...favorite,
-              landowner: {
-                id: landownerDoc.docs[0].id,
-                ...landownerData
-              }
+              landowner: landownerData
             }
           }
           return null
@@ -91,6 +90,24 @@ export default function FavoriteLandowners() {
       setLoading(false)
     }
   }
+
+  const fetchLandownerData = async (landownerId: string) => {
+    try {
+      const landownerDoc = await getDocs(query(collection(db, 'users'), where('id', '==', landownerId)));
+      if (!landownerDoc.empty) {
+        const landownerData = landownerDoc.docs[0].data();
+        const landownerId = landownerDoc.docs[0].id;
+        return {
+          ...landownerData,
+          id: landownerId
+        };
+      }
+      return null;
+    } catch (error) {
+      console.error('Error fetching landowner data:', error);
+      return null;
+    }
+  };
 
   const searchLandowners = async (term: string) => {
     if (!term.trim()) {

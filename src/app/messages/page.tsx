@@ -7,13 +7,22 @@ import ChatWindow from "@/app/components/Messaging/ChatWindow";
 import NewConversation from "@/app/components/Messaging/NewConversation";
 import styles from "../../styles/Messaging.module.css";
 
+interface Conversation {
+  id: string;
+  participants: string[];
+  lastMessage: string;
+  lastMessageTime: Date;
+  unreadCount: number;
+}
+
 export default function Messages() {
   const { user } = useAuth();
-  const [selectedConversation, setSelectedConversation] = useState(null);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [isMobileListVisible, setIsMobileListVisible] = useState(true);
   const [showNewConversation, setShowNewConversation] = useState(false);
 
-  const handleSelectConversation = (conversation) => {
+  const handleSelectConversation = (conversation: Conversation) => {
     setSelectedConversation(conversation);
     setIsMobileListVisible(false);
   };
@@ -27,9 +36,9 @@ export default function Messages() {
     setShowNewConversation(true);
   };
 
-  const handleConversationCreated = (conversationId) => {
+  const handleConversationCreated = (conversationId: string) => {
     setShowNewConversation(false);
-    setSelectedConversation({ id: conversationId });
+    setSelectedConversation({ id: conversationId, participants: [], lastMessage: "", lastMessageTime: new Date(), unreadCount: 0 });
     setIsMobileListVisible(false);
   };
 

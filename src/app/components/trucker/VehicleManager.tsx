@@ -16,17 +16,21 @@ import {
 } from 'firebase/firestore'
 
 interface Vehicle {
-  id: string
-  userId: string
-  name: string
-  type: 'semi' | 'box_truck' | 'van' | 'other'
-  licensePlate: string
-  length: number
-  height: number
-  weight: number
-  isDefault: boolean
-  createdAt: Timestamp
-  updatedAt: Timestamp
+  id: string;
+  name: string;
+  type: 'semi' | 'van' | 'box_truck' | 'other';
+  licensePlate: string;
+  make: string;
+  model: string;
+  year: number;
+  height: number;
+  width: number;
+  length: number;
+  weight: number;
+  userId: string;
+  isDefault: boolean;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export default function VehicleManager() {
@@ -34,12 +38,16 @@ export default function VehicleManager() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [newVehicle, setNewVehicle] = useState({
+  const [newVehicle, setNewVehicle] = useState<Omit<Vehicle, 'id' | 'userId' | 'createdAt' | 'updatedAt'>>({
     name: '',
-    type: 'semi' as const,
+    type: 'semi',
     licensePlate: '',
-    length: 0,
+    make: '',
+    model: '',
+    year: 0,
     height: 0,
+    width: 0,
+    length: 0,
     weight: 0,
     isDefault: false
   })
@@ -69,47 +77,43 @@ export default function VehicleManager() {
     }
   }
 
-  const handleAddVehicle = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!user) return
-
+  const handleAddVehicle = async () => {
     try {
-      // If this is the first vehicle or marked as default, unset other defaults
-      if (newVehicle.isDefault || vehicles.length === 0) {
-        for (const vehicle of vehicles) {
-          if (vehicle.isDefault) {
-            await updateDoc(doc(db, 'vehicles', vehicle.id), {
-              isDefault: false,
-              updatedAt: Timestamp.now()
-            })
-          }
-        }
-      }
+      const vehicleData: Omit<Vehicle, 'id'> = {
+        name: newVehicle.name,
+        type: newVehicle.type,
+        licensePlate: newVehicle.licensePlate,
+        make: newVehicle.make,
+        model: newVehicle.model,
+        year: newVehicle.year,
+        height: newVehicle.height,
+        width: newVehicle.width,
+        length: newVehicle.length,
+        weight: newVehicle.weight,
+        userId: user?.uid || '',
+        isDefault: newVehicle.isDefault || vehicles.length === 0,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
 
-      await addDoc(collection(db, 'vehicles'), {
-        ...newVehicle,
-        userId: user.uid,
-        isDefault: newVehicle.isDefault || vehicles.length === 0, // First vehicle is default
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now()
-      })
-
+      await addDoc(collection(db, 'vehicles'), vehicleData);
       setNewVehicle({
         name: '',
         type: 'semi',
         licensePlate: '',
-        length: 0,
+        make: '',
+        model: '',
+        year: 0,
         height: 0,
+        width: 0,
+        length: 0,
         weight: 0,
         isDefault: false
-      })
-
-      loadVehicles()
-    } catch (err) {
-      console.error('Error adding vehicle:', err)
-      setError('Failed to add vehicle')
+      });
+    } catch (error) {
+      console.error('Error adding vehicle:', error);
     }
-  }
+  };
 
   const handleSetDefault = async (vehicleId: string) => {
     try {
@@ -180,9 +184,9 @@ export default function VehicleManager() {
                 className="mt-1 block w-full border rounded-md shadow-sm py-2 px-3"
                 required
               >
-                <option value="semi">Semi Truck</option>
-                <option value="box_truck">Box Truck</option>
+                <option value="semi">Semi</option>
                 <option value="van">Van</option>
+                <option value="box_truck">Box Truck</option>
                 <option value="other">Other</option>
               </select>
             </div>
@@ -200,13 +204,37 @@ export default function VehicleManager() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">Length (feet)</label>
+              <label className="block text-sm font-medium text-gray-700">Make</label>
+              <input
+                type="text"
+                value={newVehicle.make}
+                onChange={(e) => setNewVehicle({ ...newVehicle, make: e.target.value })}
+                className="mt-1 block w-full border rounded-md shadow-sm py-2 px-3"
+                placeholder="Vehicle make"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Model</label>
+              <input
+                type="text"
+                value={newVehicle.model}
+                onChange={(e) => setNewVehicle({ ...newVehicle, model: e.target.value })}
+                className="mt-1 block w-full border rounded-md shadow-sm py-2 px-3"
+                placeholder="Vehicle model"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Year</label>
               <input
                 type="number"
-                value={newVehicle.length || ''}
-                onChange={(e) => setNewVehicle({ ...newVehicle, length: parseFloat(e.target.value) })}
+                value={newVehicle.year || ''}
+                onChange={(e) => setNewVehicle({ ...newVehicle, year: parseInt(e.target.value) })}
                 className="mt-1 block w-full border rounded-md shadow-sm py-2 px-3"
-                placeholder="Vehicle length"
+                placeholder="Vehicle year"
                 required
               />
             </div>
@@ -219,6 +247,30 @@ export default function VehicleManager() {
                 onChange={(e) => setNewVehicle({ ...newVehicle, height: parseFloat(e.target.value) })}
                 className="mt-1 block w-full border rounded-md shadow-sm py-2 px-3"
                 placeholder="Vehicle height"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Width (feet)</label>
+              <input
+                type="number"
+                value={newVehicle.width || ''}
+                onChange={(e) => setNewVehicle({ ...newVehicle, width: parseFloat(e.target.value) })}
+                className="mt-1 block w-full border rounded-md shadow-sm py-2 px-3"
+                placeholder="Vehicle width"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Length (feet)</label>
+              <input
+                type="number"
+                value={newVehicle.length || ''}
+                onChange={(e) => setNewVehicle({ ...newVehicle, length: parseFloat(e.target.value) })}
+                className="mt-1 block w-full border rounded-md shadow-sm py-2 px-3"
+                placeholder="Vehicle length"
                 required
               />
             </div>

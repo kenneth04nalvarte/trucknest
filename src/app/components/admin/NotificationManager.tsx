@@ -13,19 +13,23 @@ import {
   updateDoc,
   doc,
   Timestamp,
-  onSnapshot
+  onSnapshot,
+  deleteDoc
 } from 'firebase/firestore'
 
 interface NotificationTemplate {
   id: string
-  name: string
   type: 'push' | 'sms'
-  title?: string
+  title: string
   body: string
+  trigger: string
+  name: string
   category: 'booking' | 'payment' | 'reminder' | 'system'
   createdAt: Timestamp
   updatedAt: Timestamp
 }
+
+type NewTemplate = Omit<NotificationTemplate, 'id' | 'createdAt' | 'updatedAt'>
 
 interface ScheduledNotification {
   id: string
@@ -44,12 +48,13 @@ export default function NotificationManager() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [selectedTemplate, setSelectedTemplate] = useState<NotificationTemplate | null>(null)
-  const [newTemplate, setNewTemplate] = useState({
-    name: '',
-    type: 'push' as const,
+  const [newTemplate, setNewTemplate] = useState<NewTemplate>({
+    type: 'push',
     title: '',
     body: '',
-    category: 'system' as const
+    trigger: '',
+    name: '',
+    category: 'system',
   })
 
   useEffect(() => {
@@ -92,27 +97,26 @@ export default function NotificationManager() {
     }
   }, [user])
 
-  const handleCreateTemplate = async (e: React.FormEvent) => {
+  const handleAddTemplate = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newTemplate.name || !newTemplate.body) return
-
     try {
       await addDoc(collection(db, 'notificationTemplates'), {
         ...newTemplate,
         createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now()
+        updatedAt: Timestamp.now(),
       })
 
       setNewTemplate({
-        name: '',
         type: 'push',
         title: '',
         body: '',
-        category: 'system'
+        trigger: '',
+        name: '',
+        category: 'system',
       })
-    } catch (err) {
-      console.error('Error creating template:', err)
-      setError('Failed to create notification template')
+      fetchTemplates()
+    } catch (error) {
+      console.error('Error adding template:', error)
     }
   }
 
@@ -144,6 +148,31 @@ export default function NotificationManager() {
     }
   }
 
+  const handleDeleteTemplate = async (templateId: string) => {
+    try {
+      await deleteDoc(doc(db, 'notificationTemplates', templateId))
+      fetchTemplates()
+    } catch (error) {
+      console.error('Error deleting template:', error)
+    }
+  }
+
+  const fetchTemplates = async () => {
+    try {
+      const templatesRef = collection(db, 'notificationTemplates')
+      const snapshot = await getDocs(templatesRef)
+      
+      const templatesData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as NotificationTemplate[]
+      
+      setTemplates(templatesData)
+    } catch (error) {
+      console.error('Error fetching templates:', error)
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-48">
@@ -153,138 +182,110 @@ export default function NotificationManager() {
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      {/* Templates Section */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="p-4 border-b border-gray-200">
-          <h2 className="text-lg font-medium text-gray-900">Notification Templates</h2>
-          
-          {/* Create Template Form */}
-          <form onSubmit={handleCreateTemplate} className="mt-4 space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Template Name</label>
-              <input
-                type="text"
-                value={newTemplate.name}
-                onChange={(e) => setNewTemplate({ ...newTemplate, name: e.target.value })}
-                className="mt-1 block w-full border rounded-md shadow-sm py-2 px-3"
-                placeholder="Enter template name"
-              />
-            </div>
+    <div className="p-4">
+      <h1 className="text-2xl font-bold mb-4">Notification Templates</h1>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Type</label>
-              <select
-                value={newTemplate.type}
-                onChange={(e) => setNewTemplate({ ...newTemplate, type: e.target.value as 'push' | 'sms' })}
-                className="mt-1 block w-full border rounded-md shadow-sm py-2 px-3"
-              >
-                <option value="push">Push Notification</option>
-                <option value="sms">SMS</option>
-              </select>
-            </div>
-
-            {newTemplate.type === 'push' && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Title</label>
-                <input
-                  type="text"
-                  value={newTemplate.title}
-                  onChange={(e) => setNewTemplate({ ...newTemplate, title: e.target.value })}
-                  className="mt-1 block w-full border rounded-md shadow-sm py-2 px-3"
-                  placeholder="Enter notification title"
-                />
-              </div>
-            )}
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Message Body</label>
-              <textarea
-                value={newTemplate.body}
-                onChange={(e) => setNewTemplate({ ...newTemplate, body: e.target.value })}
-                className="mt-1 block w-full border rounded-md shadow-sm py-2 px-3"
-                rows={3}
-                placeholder="Enter message content"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Category</label>
-              <select
-                value={newTemplate.category}
-                onChange={(e) => setNewTemplate({ ...newTemplate, category: e.target.value as 'booking' | 'payment' | 'reminder' | 'system' })}
-                className="mt-1 block w-full border rounded-md shadow-sm py-2 px-3"
-              >
-                <option value="booking">Booking</option>
-                <option value="payment">Payment</option>
-                <option value="reminder">Reminder</option>
-                <option value="system">System</option>
-              </select>
-            </div>
-
-            <button
-              type="submit"
-              disabled={!newTemplate.name || !newTemplate.body}
-              className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:bg-gray-400"
-            >
-              Create Template
-            </button>
-          </form>
+      <form onSubmit={handleAddTemplate} className="mb-8 space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Type</label>
+          <select
+            value={newTemplate.type}
+            onChange={(e) => setNewTemplate({ ...newTemplate, type: e.target.value as NotificationTemplate['type'] })}
+            className="mt-1 block w-full border rounded-md shadow-sm py-2 px-3"
+          >
+            <option value="push">Push Notification</option>
+            <option value="sms">SMS</option>
+          </select>
         </div>
 
-        {/* Templates List */}
-        <div className="divide-y divide-gray-200">
-          {templates.map(template => (
-            <div
-              key={template.id}
-              className="p-4 hover:bg-gray-50 cursor-pointer"
-              onClick={() => setSelectedTemplate(template)}
-            >
-              <div className="flex justify-between items-start">
-                <div>
-                  <h3 className="text-sm font-medium text-gray-900">{template.name}</h3>
-                  <p className="text-sm text-gray-500 mt-1">{template.body}</p>
-                </div>
-                <span className={`
-                  px-2 py-1 text-xs rounded-full
-                  ${template.type === 'push' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}
-                `}>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Name</label>
+          <input
+            type="text"
+            value={newTemplate.name}
+            onChange={(e) => setNewTemplate({ ...newTemplate, name: e.target.value })}
+            className="mt-1 block w-full border rounded-md shadow-sm py-2 px-3"
+            required
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Title</label>
+          <input
+            type="text"
+            value={newTemplate.title}
+            onChange={(e) => setNewTemplate({ ...newTemplate, title: e.target.value })}
+            className="mt-1 block w-full border rounded-md shadow-sm py-2 px-3"
+            required
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Body</label>
+          <textarea
+            value={newTemplate.body}
+            onChange={(e) => setNewTemplate({ ...newTemplate, body: e.target.value })}
+            className="mt-1 block w-full border rounded-md shadow-sm py-2 px-3"
+            rows={3}
+            required
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Category</label>
+          <select
+            value={newTemplate.category}
+            onChange={(e) => setNewTemplate({ ...newTemplate, category: e.target.value as NotificationTemplate['category'] })}
+            className="mt-1 block w-full border rounded-md shadow-sm py-2 px-3"
+          >
+            <option value="booking">Booking</option>
+            <option value="payment">Payment</option>
+            <option value="reminder">Reminder</option>
+            <option value="system">System</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Trigger</label>
+          <input
+            type="text"
+            value={newTemplate.trigger}
+            onChange={(e) => setNewTemplate({ ...newTemplate, trigger: e.target.value })}
+            className="mt-1 block w-full border rounded-md shadow-sm py-2 px-3"
+            required
+          />
+        </div>
+
+        <button
+          type="submit"
+          className="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+        >
+          Add Template
+        </button>
+      </form>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {templates.map((template) => (
+          <div key={template.id} className="border rounded-lg p-4 shadow-sm">
+            <div className="flex justify-between items-start">
+              <div>
+                <span className="inline-block px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 mb-2">
                   {template.type}
                 </span>
+                <h3 className="text-lg font-semibold">{template.name}</h3>
+                <p className="text-gray-600 mt-1">{template.body}</p>
+                <p className="text-sm text-gray-500 mt-2">Category: {template.category}</p>
+                <p className="text-sm text-gray-500">Trigger: {template.trigger}</p>
               </div>
+              <button
+                onClick={() => handleDeleteTemplate(template.id)}
+                className="text-red-600 hover:text-red-800"
+              >
+                Delete
+              </button>
             </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Scheduled Notifications Section */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="p-4 border-b border-gray-200">
-          <h2 className="text-lg font-medium text-gray-900">Scheduled Notifications</h2>
-        </div>
-
-        <div className="divide-y divide-gray-200">
-          {scheduledNotifications.map(notification => (
-            <div key={notification.id} className="p-4">
-              <div className="flex justify-between items-start">
-                <div>
-                  <h3 className="text-sm font-medium text-gray-900">
-                    {templates.find(t => t.id === notification.templateId)?.name}
-                  </h3>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Scheduled for: {notification.scheduledFor.toDate().toLocaleString()}
-                  </p>
-                </div>
-                <button
-                  onClick={() => handleCancelNotification(notification.id)}
-                  className="text-red-600 hover:text-red-800 text-sm"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
+          </div>
+        ))}
       </div>
 
       {error && (

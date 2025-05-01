@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/context/AuthContext'
 import { db } from '@/config/firebase'
 import {
@@ -11,185 +11,223 @@ import {
   updateDoc,
   doc,
   deleteDoc,
-  Timestamp
+  Timestamp,
+  FirestoreError,
+  DocumentData,
+  QueryDocumentSnapshot
 } from 'firebase/firestore'
 
-interface Language {
-  id: string
-  code: string
-  name: string
-  isActive: boolean
-  createdAt: Timestamp
-  updatedAt: Timestamp
+export type LanguageCode = string;
+export type TranslationCategory = 'general' | 'auth' | 'booking' | 'payment' | 'profile' | 'settings';
+
+export interface Language {
+  id: string;
+  code: LanguageCode;
+  name: string;
+  isActive: boolean;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
 }
 
-interface Translation {
-  id: string
-  languageCode: string
-  key: string
-  value: string
-  category: string
-  createdAt: Timestamp
-  updatedAt: Timestamp
+export interface Translation {
+  id: string;
+  languageCode: LanguageCode;
+  key: string;
+  value: string;
+  category: TranslationCategory;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
 }
 
-export default function LanguageManager() {
-  const { user } = useAuth()
-  const [languages, setLanguages] = useState<Language[]>([])
-  const [translations, setTranslations] = useState<Translation[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [selectedLanguage, setSelectedLanguage] = useState<string>('')
-  const [newTranslation, setNewTranslation] = useState({
+interface NewLanguage {
+  code: LanguageCode;
+  name: string;
+  isActive: boolean;
+}
+
+interface NewTranslation {
+  key: string;
+  value: string;
+  category: TranslationCategory;
+}
+
+interface LanguageManagerState {
+  languages: Language[];
+  translations: Translation[];
+  loading: boolean;
+  error: string;
+  selectedLanguage: LanguageCode;
+  newTranslation: NewTranslation;
+  newLanguage: NewLanguage;
+}
+
+const initialState: LanguageManagerState = {
+  languages: [],
+  translations: [],
+  loading: true,
+  error: '',
+  selectedLanguage: '',
+  newTranslation: {
     key: '',
     value: '',
     category: 'general'
-  })
-  const [newLanguage, setNewLanguage] = useState({
+  },
+  newLanguage: {
     code: '',
     name: '',
     isActive: true
-  })
+  }
+};
+
+export default function LanguageManager() {
+  const { user } = useAuth();
+  const [state, setState] = useState<LanguageManagerState>(initialState);
+
+  const updateState = useCallback((updates: Partial<LanguageManagerState>) => {
+    setState(prev => ({ ...prev, ...updates }));
+  }, []);
 
   useEffect(() => {
-    if (!user) return
-    loadLanguages()
-  }, [user])
+    if (!user) return;
+    loadLanguages();
+  }, [user]);
 
   useEffect(() => {
-    if (selectedLanguage) {
-      loadTranslations(selectedLanguage)
+    if (state.selectedLanguage) {
+      fetchTranslations(state.selectedLanguage);
     }
-  }, [selectedLanguage])
+  }, [state.selectedLanguage]);
 
-  const loadLanguages = async () => {
+  const loadLanguages = useCallback(async () => {
     try {
-      const languagesQuery = query(collection(db, 'languages'))
-      const snapshot = await getDocs(languagesQuery)
-      const languagesData = snapshot.docs.map(doc => ({
+      const languagesQuery = query(collection(db, 'languages'));
+      const snapshot = await getDocs(languagesQuery);
+      const languagesData = snapshot.docs.map((doc: QueryDocumentSnapshot<DocumentData>) => ({
         id: doc.id,
         ...doc.data()
-      })) as Language[]
-      setLanguages(languagesData)
-      setLoading(false)
+      })) as Language[];
+      updateState({ languages: languagesData, loading: false });
     } catch (err) {
-      console.error('Error loading languages:', err)
-      setError('Failed to load languages')
-      setLoading(false)
+      const error = err as FirestoreError;
+      console.error('Error loading languages:', error);
+      updateState({ error: 'Failed to load languages', loading: false });
     }
-  }
+  }, [updateState]);
 
-  const loadTranslations = async (languageCode: string) => {
+  const fetchTranslations = useCallback(async (languageCode: LanguageCode) => {
     try {
-      const translationsQuery = query(
-        collection(db, 'translations'),
-        where('languageCode', '==', languageCode)
-      )
-      const snapshot = await getDocs(translationsQuery)
-      const translationsData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Translation[]
-      setTranslations(translationsData)
-    } catch (err) {
-      console.error('Error loading translations:', err)
-      setError('Failed to load translations')
+      const translationsRef = collection(db, 'translations');
+      const snapshot = await getDocs(translationsRef);
+      
+      const translationsData = snapshot.docs
+        .map((doc: QueryDocumentSnapshot<DocumentData>) => ({
+          id: doc.id,
+          ...doc.data()
+        }))
+        .filter((translation: Translation) => translation.languageCode === languageCode);
+      
+      updateState({ translations: translationsData });
+    } catch (error) {
+      const firestoreError = error as FirestoreError;
+      console.error('Error fetching translations:', firestoreError);
+      updateState({ error: 'Failed to fetch translations' });
     }
-  }
+  }, [updateState]);
 
   const handleAddLanguage = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!newLanguage.code || !newLanguage.name) return
+    e.preventDefault();
+    if (!state.newLanguage.code || !state.newLanguage.name) return;
 
     try {
       await addDoc(collection(db, 'languages'), {
-        ...newLanguage,
+        ...state.newLanguage,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now()
-      })
+      });
 
-      setNewLanguage({
-        code: '',
-        name: '',
-        isActive: true
-      })
+      updateState({
+        newLanguage: initialState.newLanguage
+      });
 
-      loadLanguages()
+      loadLanguages();
     } catch (err) {
-      console.error('Error adding language:', err)
-      setError('Failed to add language')
+      const error = err as FirestoreError;
+      console.error('Error adding language:', error);
+      updateState({ error: 'Failed to add language' });
     }
-  }
+  };
 
   const handleToggleLanguage = async (languageId: string, isActive: boolean) => {
     try {
       await updateDoc(doc(db, 'languages', languageId), {
         isActive,
         updatedAt: Timestamp.now()
-      })
+      });
 
-      loadLanguages()
+      loadLanguages();
     } catch (err) {
-      console.error('Error updating language:', err)
-      setError('Failed to update language')
+      const error = err as FirestoreError;
+      console.error('Error updating language:', error);
+      updateState({ error: 'Failed to update language' });
     }
-  }
+  };
 
   const handleAddTranslation = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!selectedLanguage || !newTranslation.key || !newTranslation.value) return
+    e.preventDefault();
+    if (!state.selectedLanguage || !state.newTranslation.key || !state.newTranslation.value) return;
 
     try {
       await addDoc(collection(db, 'translations'), {
-        languageCode: selectedLanguage,
-        ...newTranslation,
+        languageCode: state.selectedLanguage,
+        ...state.newTranslation,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now()
-      })
+      });
 
-      setNewTranslation({
-        key: '',
-        value: '',
-        category: 'general'
-      })
+      updateState({
+        newTranslation: initialState.newTranslation
+      });
 
-      loadTranslations(selectedLanguage)
+      fetchTranslations(state.selectedLanguage);
     } catch (err) {
-      console.error('Error adding translation:', err)
-      setError('Failed to add translation')
+      const error = err as FirestoreError;
+      console.error('Error adding translation:', error);
+      updateState({ error: 'Failed to add translation' });
     }
-  }
+  };
 
   const handleUpdateTranslation = async (translationId: string, value: string) => {
     try {
       await updateDoc(doc(db, 'translations', translationId), {
         value,
         updatedAt: Timestamp.now()
-      })
+      });
 
-      loadTranslations(selectedLanguage)
+      fetchTranslations(state.selectedLanguage);
     } catch (err) {
-      console.error('Error updating translation:', err)
-      setError('Failed to update translation')
+      const error = err as FirestoreError;
+      console.error('Error updating translation:', error);
+      updateState({ error: 'Failed to update translation' });
     }
-  }
+  };
 
   const handleDeleteTranslation = async (translationId: string) => {
     try {
-      await deleteDoc(doc(db, 'translations', translationId))
-      loadTranslations(selectedLanguage)
+      await deleteDoc(doc(db, 'translations', translationId));
+      fetchTranslations(state.selectedLanguage);
     } catch (err) {
-      console.error('Error deleting translation:', err)
-      setError('Failed to delete translation')
+      const error = err as FirestoreError;
+      console.error('Error deleting translation:', error);
+      updateState({ error: 'Failed to delete translation' });
     }
-  }
+  };
 
-  if (loading) {
+  if (state.loading) {
     return (
       <div className="flex justify-center items-center h-48">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
       </div>
-    )
+    );
   }
 
   return (
@@ -205,10 +243,13 @@ export default function LanguageManager() {
               <label className="block text-sm font-medium text-gray-700">Language Code</label>
               <input
                 type="text"
-                value={newLanguage.code}
-                onChange={(e) => setNewLanguage({ ...newLanguage, code: e.target.value })}
+                value={state.newLanguage.code}
+                onChange={(e) => updateState({ newLanguage: { ...state.newLanguage, code: e.target.value } })}
                 className="mt-1 block w-full border rounded-md shadow-sm py-2 px-3"
                 placeholder="e.g., en, es, fr"
+                maxLength={5}
+                pattern="[a-z]{2}(-[A-Z]{2})?"
+                title="Use ISO 639-1 language code (e.g., en, es, fr) or with region (e.g., en-US, es-ES)"
               />
             </div>
 
@@ -216,16 +257,17 @@ export default function LanguageManager() {
               <label className="block text-sm font-medium text-gray-700">Language Name</label>
               <input
                 type="text"
-                value={newLanguage.name}
-                onChange={(e) => setNewLanguage({ ...newLanguage, name: e.target.value })}
+                value={state.newLanguage.name}
+                onChange={(e) => updateState({ newLanguage: { ...state.newLanguage, name: e.target.value } })}
                 className="mt-1 block w-full border rounded-md shadow-sm py-2 px-3"
                 placeholder="e.g., English, Spanish, French"
+                maxLength={50}
               />
             </div>
 
             <button
               type="submit"
-              disabled={!newLanguage.code || !newLanguage.name}
+              disabled={!state.newLanguage.code || !state.newLanguage.name}
               className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:bg-gray-400"
             >
               Add Language
@@ -235,7 +277,7 @@ export default function LanguageManager() {
 
         {/* Languages List */}
         <div className="divide-y divide-gray-200">
-          {languages.map(language => (
+          {state.languages.map(language => (
             <div key={language.id} className="p-4">
               <div className="flex justify-between items-center">
                 <div>
@@ -244,20 +286,21 @@ export default function LanguageManager() {
                 </div>
                 <div className="flex items-center">
                   <button
-                    onClick={() => setSelectedLanguage(language.code)}
+                    onClick={() => updateState({ selectedLanguage: language.code })}
                     className="text-blue-600 hover:text-blue-800 text-sm mr-4"
                   >
                     Edit Translations
                   </button>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={language.isActive}
-                      onChange={(e) => handleToggleLanguage(language.id, e.target.checked)}
-                      className="sr-only peer"
-                    />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                  </label>
+                  <button
+                    onClick={() => handleToggleLanguage(language.id, !language.isActive)}
+                    className={`text-sm px-3 py-1 rounded ${
+                      language.isActive
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-red-100 text-red-800'
+                    }`}
+                  >
+                    {language.isActive ? 'Active' : 'Inactive'}
+                  </button>
                 </div>
               </div>
             </div>
@@ -266,98 +309,104 @@ export default function LanguageManager() {
       </div>
 
       {/* Translations Section */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="p-4 border-b border-gray-200">
-          <h2 className="text-lg font-medium text-gray-900">Translations</h2>
-          
-          {selectedLanguage ? (
-            <>
-              {/* Add Translation Form */}
-              <form onSubmit={handleAddTranslation} className="mt-4 space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Translation Key</label>
-                  <input
-                    type="text"
-                    value={newTranslation.key}
-                    onChange={(e) => setNewTranslation({ ...newTranslation, key: e.target.value })}
-                    className="mt-1 block w-full border rounded-md shadow-sm py-2 px-3"
-                    placeholder="e.g., common.welcome"
-                  />
-                </div>
+      {state.selectedLanguage && (
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="p-4 border-b border-gray-200">
+            <h2 className="text-lg font-medium text-gray-900">Translations</h2>
+            
+            {/* Add Translation Form */}
+            <form onSubmit={handleAddTranslation} className="mt-4 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Translation Key</label>
+                <input
+                  type="text"
+                  value={state.newTranslation.key}
+                  onChange={(e) => updateState({ newTranslation: { ...state.newTranslation, key: e.target.value } })}
+                  className="mt-1 block w-full border rounded-md shadow-sm py-2 px-3"
+                  placeholder="e.g., welcome_message"
+                  maxLength={100}
+                  pattern="[a-z_]+"
+                  title="Use lowercase letters and underscores only"
+                />
+              </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Translation Value</label>
-                  <input
-                    type="text"
-                    value={newTranslation.value}
-                    onChange={(e) => setNewTranslation({ ...newTranslation, value: e.target.value })}
-                    className="mt-1 block w-full border rounded-md shadow-sm py-2 px-3"
-                    placeholder="Enter translation"
-                  />
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Translation Value</label>
+                <input
+                  type="text"
+                  value={state.newTranslation.value}
+                  onChange={(e) => updateState({ newTranslation: { ...state.newTranslation, value: e.target.value } })}
+                  className="mt-1 block w-full border rounded-md shadow-sm py-2 px-3"
+                  placeholder="e.g., Welcome to our app!"
+                  maxLength={500}
+                />
+              </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Category</label>
-                  <select
-                    value={newTranslation.category}
-                    onChange={(e) => setNewTranslation({ ...newTranslation, category: e.target.value })}
-                    className="mt-1 block w-full border rounded-md shadow-sm py-2 px-3"
-                  >
-                    <option value="general">General</option>
-                    <option value="auth">Authentication</option>
-                    <option value="booking">Booking</option>
-                    <option value="payment">Payment</option>
-                    <option value="profile">Profile</option>
-                    <option value="notifications">Notifications</option>
-                  </select>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={!newTranslation.key || !newTranslation.value}
-                  className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:bg-gray-400"
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Category</label>
+                <select
+                  value={state.newTranslation.category}
+                  onChange={(e) => updateState({ newTranslation: { ...state.newTranslation, category: e.target.value as TranslationCategory } })}
+                  className="mt-1 block w-full border rounded-md shadow-sm py-2 px-3"
                 >
-                  Add Translation
-                </button>
-              </form>
+                  <option value="general">General</option>
+                  <option value="auth">Authentication</option>
+                  <option value="booking">Booking</option>
+                  <option value="payment">Payment</option>
+                  <option value="profile">Profile</option>
+                  <option value="settings">Settings</option>
+                </select>
+              </div>
 
-              {/* Translations List */}
-              <div className="mt-6 space-y-4">
-                {translations.map(translation => (
-                  <div key={translation.id} className="border rounded-md p-4">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h3 className="text-sm font-medium text-gray-900">{translation.key}</h3>
-                        <p className="text-xs text-gray-500">{translation.category}</p>
-                      </div>
-                      <button
-                        onClick={() => handleDeleteTranslation(translation.id)}
-                        className="text-red-600 hover:text-red-800 text-sm"
-                      >
-                        Delete
-                      </button>
-                    </div>
+              <button
+                type="submit"
+                disabled={!state.newTranslation.key || !state.newTranslation.value}
+                className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:bg-gray-400"
+              >
+                Add Translation
+              </button>
+            </form>
+          </div>
+
+          {/* Translations List */}
+          <div className="divide-y divide-gray-200">
+            {state.translations.map(translation => (
+              <div key={translation.id} className="p-4">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-900">{translation.key}</h3>
+                    <p className="text-sm text-gray-500">{translation.category}</p>
+                  </div>
+                  <div className="flex items-center space-x-2">
                     <input
                       type="text"
                       value={translation.value}
                       onChange={(e) => handleUpdateTranslation(translation.id, e.target.value)}
-                      className="mt-2 block w-full border rounded-md shadow-sm py-2 px-3"
+                      className="text-sm border rounded px-2 py-1"
+                      maxLength={500}
                     />
+                    <button
+                      onClick={() => handleDeleteTranslation(translation.id)}
+                      className="text-red-600 hover:text-red-800"
+                    >
+                      Delete
+                    </button>
                   </div>
-                ))}
+                </div>
               </div>
-            </>
-          ) : (
-            <p className="text-gray-500 text-center mt-4">Select a language to manage translations</p>
-          )}
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
-      {error && (
-        <div className="fixed bottom-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-          {error}
+      {/* Error Display */}
+      {state.error && (
+        <div className="col-span-full">
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+            {state.error}
+          </div>
         </div>
       )}
     </div>
-  )
+  );
 } 

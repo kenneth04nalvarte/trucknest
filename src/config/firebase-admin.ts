@@ -1,17 +1,31 @@
-import * as admin from 'firebase-admin'
+import { initializeApp, getApps, cert } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
+import { getFirestore } from 'firebase-admin/firestore';
 
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert({
-      projectId: process.env.FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n')
-    })
-  })
+const firebaseAdminConfig = {
+  credential: cert({
+    projectId: process.env.FIREBASE_PROJECT_ID,
+    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+    privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+  }),
+};
+
+// Initialize Firebase Admin
+let app;
+let auth;
+let db;
+
+if (!getApps().length) {
+  app = initializeApp(firebaseAdminConfig);
+} else {
+  app = getApps()[0];
 }
 
+auth = getAuth(app);
+db = getFirestore(app);
+
 // Customize password reset email template
-admin.auth().updateConfig({
+auth.updateConfig({
   passwordResetTemplate: {
     subject: 'Reset your TruckNest password',
     body: `
@@ -53,4 +67,4 @@ admin.auth().updateConfig({
   }
 })
 
-export { admin as firebaseAdmin } 
+export { app, auth, db }; 

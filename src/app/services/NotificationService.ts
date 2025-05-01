@@ -1,194 +1,163 @@
-import admin from 'firebase-admin'
-import twilio from 'twilio'
 import { db } from '@/config/firebase'
-import {
-  collection,
-  query,
-  where,
-  getDocs,
-  updateDoc,
+import { 
+  collection, 
+  addDoc, 
+  FirestoreError, 
+  writeBatch, 
   doc,
+  DocumentReference,
+  DocumentData,
   Timestamp
 } from 'firebase/firestore'
 
-// Initialize Twilio client
-const twilioClient = twilio(
-  process.env.TWILIO_ACCOUNT_SID,
-  process.env.TWILIO_AUTH_TOKEN
-)
+export type NotificationType = 'info' | 'success' | 'warning' | 'error'
 
-class NotificationService {
-  private static instance: NotificationService
-  private isInitialized = false
-
-  private constructor() {
-    if (!this.isInitialized) {
-      // Initialize Firebase Admin SDK if not already initialized
-      if (!admin.apps.length) {
-        admin.initializeApp({
-          credential: admin.credential.cert({
-            projectId: process.env.FIREBASE_PROJECT_ID,
-            clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-            privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n')
-          })
-        })
-      }
-      this.isInitialized = true
-    }
-  }
-
-  public static getInstance(): NotificationService {
-    if (!NotificationService.instance) {
-      NotificationService.instance = new NotificationService()
-    }
-    return NotificationService.instance
-  }
-
-  async sendPushNotification(
-    userId: string,
-    title: string,
-    body: string,
-    data?: Record<string, string>
-  ) {
-    try {
-      // Get user's FCM token
-      const userDoc = await getDocs(
-        query(collection(db, 'users'), where('uid', '==', userId))
-      )
-      
-      if (userDoc.empty) {
-        throw new Error('User not found')
-      }
-
-      const userData = userDoc.docs[0].data()
-      const fcmToken = userData.fcmToken
-
-      if (!fcmToken) {
-        throw new Error('User has no FCM token')
-      }
-
-      // Send push notification
-      await admin.messaging().send({
-        token: fcmToken,
-        notification: {
-          title,
-          body
-        },
-        data: data || {}
-      })
-
-      // Log notification
-      await this.logNotification(userId, 'push', title, body)
-
-      return true
-    } catch (error) {
-      console.error('Error sending push notification:', error)
-      return false
-    }
-  }
-
-  async sendSMS(userId: string, message: string) {
-    try {
-      // Get user's phone number
-      const userDoc = await getDocs(
-        query(collection(db, 'users'), where('uid', '==', userId))
-      )
-      
-      if (userDoc.empty) {
-        throw new Error('User not found')
-      }
-
-      const userData = userDoc.docs[0].data()
-      const phoneNumber = userData.phoneNumber
-
-      if (!phoneNumber) {
-        throw new Error('User has no phone number')
-      }
-
-      // Send SMS via Twilio
-      await twilioClient.messages.create({
-        body: message,
-        to: phoneNumber,
-        from: process.env.TWILIO_PHONE_NUMBER
-      })
-
-      // Log notification
-      await this.logNotification(userId, 'sms', 'SMS Alert', message)
-
-      return true
-    } catch (error) {
-      console.error('Error sending SMS:', error)
-      return false
-    }
-  }
-
-  async sendScheduledNotifications() {
-    try {
-      const now = new Date()
-      
-      // Get all pending notifications scheduled for now or earlier
-      const notificationsQuery = query(
-        collection(db, 'scheduledNotifications'),
-        where('status', '==', 'pending'),
-        where('scheduledFor', '<=', Timestamp.fromDate(now))
-      )
-
-      const snapshot = await getDocs(notificationsQuery)
-
-      for (const doc of snapshot.docs) {
-        const notification = doc.data()
-        const templateDoc = await getDocs(
-          query(collection(db, 'notificationTemplates'), 
-          where('id', '==', notification.templateId))
-        )
-
-        if (!templateDoc.empty) {
-          const template = templateDoc.docs[0].data()
-          
-          let success = false
-          if (template.type === 'push') {
-            success = await this.sendPushNotification(
-              notification.userId,
-              template.title || '',
-              template.body
-            )
-          } else if (template.type === 'sms') {
-            success = await this.sendSMS(
-              notification.userId,
-              template.body
-            )
-          }
-
-          // Update notification status
-          await updateDoc(doc.ref, {
-            status: success ? 'sent' : 'failed',
-            updatedAt: Timestamp.now()
-          })
-        }
-      }
-    } catch (error) {
-      console.error('Error processing scheduled notifications:', error)
-    }
-  }
-
-  private async logNotification(
-    userId: string,
-    type: 'push' | 'sms',
-    title: string,
-    body: string
-  ) {
-    try {
-      await admin.firestore().collection('notificationLogs').add({
-        userId,
-        type,
-        title,
-        body,
-        sentAt: admin.firestore.FieldValue.serverTimestamp()
-      })
-    } catch (error) {
-      console.error('Error logging notification:', error)
-    }
-  }
+export interface NotificationMetadata {
+  [key: string]: unknown;
+  source?: string;
+  action?: string;
+  priority?: 'low' | 'medium' | 'high';
+  expiresAt?: Date;
 }
 
-export default NotificationService.getInstance() 
+export interface Notification {
+  id: string;
+  userId: string;
+  title: string;
+  message: string;
+  type: NotificationType;
+  read: boolean;
+  createdAt: Date;
+  metadata?: NotificationMetadata;
+}
+
+export interface CreateNotificationParams {
+  userId: string;
+  title: string;
+  message: string;
+  type: NotificationType;
+  metadata?: NotificationMetadata;
+}
+
+export interface CreateBulkNotificationParams extends Omit<CreateNotificationParams, 'userId'> {
+  userIds: string[];
+}
+
+export class NotificationService {
+  private static readonly collection = collection(db, 'notifications');
+  private static readonly MAX_BATCH_SIZE = 500;
+
+  private static validateNotificationParams(params: CreateNotificationParams): void {
+    if (!params.userId) {
+      throw new Error('User ID is required');
+    }
+    if (!params.title || params.title.length > 100) {
+      throw new Error('Title is required and must be less than 100 characters');
+    }
+    if (!params.message || params.message.length > 500) {
+      throw new Error('Message is required and must be less than 500 characters');
+    }
+    if (!params.type) {
+      throw new Error('Notification type is required');
+    }
+  }
+
+  private static convertToFirestoreData(notification: Notification): DocumentData {
+    return {
+      ...notification,
+      createdAt: Timestamp.fromDate(notification.createdAt),
+      metadata: notification.metadata ? {
+        ...notification.metadata,
+        expiresAt: notification.metadata.expiresAt ? Timestamp.fromDate(notification.metadata.expiresAt) : undefined
+      } : undefined
+    };
+  }
+
+  private static convertFromFirestoreData(docRef: DocumentReference, data: DocumentData): Notification {
+    return {
+      id: docRef.id,
+      ...data,
+      createdAt: (data.createdAt as Timestamp).toDate(),
+      metadata: data.metadata ? {
+        ...data.metadata,
+        expiresAt: data.metadata.expiresAt ? (data.metadata.expiresAt as Timestamp).toDate() : undefined
+      } : undefined
+    } as Notification;
+  }
+
+  static async createNotification(params: CreateNotificationParams): Promise<Notification> {
+    try {
+      this.validateNotificationParams(params);
+
+      const notification: Notification = {
+        ...params,
+        read: false,
+        createdAt: new Date()
+      };
+
+      const docRef = await addDoc(
+        this.collection,
+        this.convertToFirestoreData(notification)
+      );
+
+      return this.convertFromFirestoreData(docRef, notification);
+    } catch (error) {
+      const firestoreError = error as FirestoreError;
+      console.error('Error creating notification:', firestoreError);
+      throw new Error(`Failed to create notification: ${firestoreError.message}`);
+    }
+  }
+
+  static async createBulkNotifications(params: CreateNotificationParams[]): Promise<Notification[]> {
+    try {
+      if (params.length > this.MAX_BATCH_SIZE) {
+        throw new Error(`Cannot create more than ${this.MAX_BATCH_SIZE} notifications at once`);
+      }
+
+      params.forEach(this.validateNotificationParams);
+
+      const batch = writeBatch(db);
+      const notifications: Notification[] = [];
+
+      for (const param of params) {
+        const docRef = doc(this.collection);
+        const notification: Notification = {
+          id: docRef.id,
+          ...param,
+          read: false,
+          createdAt: new Date()
+        };
+
+        batch.set(docRef, this.convertToFirestoreData(notification));
+        notifications.push(notification);
+      }
+
+      await batch.commit();
+      return notifications;
+    } catch (error) {
+      const firestoreError = error as FirestoreError;
+      console.error('Error creating bulk notifications:', firestoreError);
+      throw new Error(`Failed to create bulk notifications: ${firestoreError.message}`);
+    }
+  }
+
+  static async createNotificationsForUsers(params: CreateBulkNotificationParams): Promise<Notification[]> {
+    try {
+      if (params.userIds.length > this.MAX_BATCH_SIZE) {
+        throw new Error(`Cannot create notifications for more than ${this.MAX_BATCH_SIZE} users at once`);
+      }
+
+      const notifications = params.userIds.map(userId => ({
+        ...params,
+        userId
+      }));
+
+      return this.createBulkNotifications(notifications);
+    } catch (error) {
+      const firestoreError = error as FirestoreError;
+      console.error('Error creating notifications for users:', firestoreError);
+      throw new Error(`Failed to create notifications for users: ${firestoreError.message}`);
+    }
+  }
+} 
+} 

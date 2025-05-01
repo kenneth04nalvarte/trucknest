@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import NotificationService from '@/services/NotificationService'
+import { NotificationService } from '@/services/NotificationService'
 
 export async function GET() {
   try {
@@ -10,7 +10,7 @@ export async function GET() {
     }
 
     // Process scheduled notifications
-    await NotificationService.sendScheduledNotifications()
+    await NotificationService.processNotifications()
 
     return NextResponse.json({ success: true })
   } catch (error) {

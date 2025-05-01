@@ -1,69 +1,95 @@
 export interface PasswordValidationResult {
-  isValid: boolean
-  errors: string[]
-  strength: 'weak' | 'medium' | 'strong'
+  isValid: boolean;
+  errors: string[];
+  strength: 'weak' | 'medium' | 'strong';
+  score: number;
 }
 
-export function validatePassword(password: string): PasswordValidationResult {
-  const errors: string[] = []
-  
-  // Minimum length check
-  if (password.length < 8) {
-    errors.push('Password must be at least 8 characters long')
-  }
-
-  // Check for uppercase letters
-  if (!/[A-Z]/.test(password)) {
-    errors.push('Password must contain at least one uppercase letter')
-  }
-
-  // Check for lowercase letters
-  if (!/[a-z]/.test(password)) {
-    errors.push('Password must contain at least one lowercase letter')
-  }
-
-  // Check for numbers
-  if (!/\d/.test(password)) {
-    errors.push('Password must contain at least one number')
-  }
-
-  // Check for special characters
-  if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
-    errors.push('Password must contain at least one special character')
-  }
-
-  // Calculate password strength
-  let strength: 'weak' | 'medium' | 'strong' = 'weak'
-  
-  if (password.length >= 12 &&
-      /[A-Z]/.test(password) &&
-      /[a-z]/.test(password) &&
-      /\d/.test(password) &&
-      /[!@#$%^&*(),.?":{}|<>]/.test(password)) {
-    strength = 'strong'
-  } else if (password.length >= 8 &&
-             /[A-Za-z]/.test(password) &&
-             /\d/.test(password)) {
-    strength = 'medium'
-  }
-
-  return {
-    isValid: errors.length === 0,
-    errors,
-    strength
-  }
+export interface PasswordValidationRule {
+  pattern: RegExp;
+  message: string;
+  score: number;
 }
 
-export function getPasswordStrengthColor(strength: 'weak' | 'medium' | 'strong'): string {
+const PASSWORD_RULES: PasswordValidationRule[] = [
+  {
+    pattern: /.{8,}/,
+    message: 'Password must be at least 8 characters long',
+    score: 1
+  },
+  {
+    pattern: /[A-Z]/,
+    message: 'Password must contain at least one uppercase letter',
+    score: 1
+  },
+  {
+    pattern: /[a-z]/,
+    message: 'Password must contain at least one lowercase letter',
+    score: 1
+  },
+  {
+    pattern: /[0-9]/,
+    message: 'Password must contain at least one number',
+    score: 1
+  },
+  {
+    pattern: /[^A-Za-z0-9]/,
+    message: 'Password must contain at least one special character',
+    score: 2
+  }
+];
+
+export const validatePassword = (password: string): PasswordValidationResult => {
+  const result: PasswordValidationResult = {
+    isValid: true,
+    errors: [],
+    strength: 'weak',
+    score: 0
+  };
+
+  for (const rule of PASSWORD_RULES) {
+    if (!rule.pattern.test(password)) {
+      result.isValid = false;
+      result.errors.push(rule.message);
+    } else {
+      result.score += rule.score;
+    }
+  }
+
+  if (result.score >= 5) {
+    result.strength = 'strong';
+  } else if (result.score >= 3) {
+    result.strength = 'medium';
+  }
+
+  return result;
+};
+
+export const getPasswordStrengthColor = (strength: PasswordValidationResult['strength']): string => {
   switch (strength) {
     case 'strong':
-      return 'bg-green-500'
+      return 'text-green-600';
     case 'medium':
-      return 'bg-yellow-500'
+      return 'text-yellow-600';
+    case 'weak':
+      return 'text-red-600';
     default:
-      return 'bg-red-500'
+      return 'text-gray-600';
   }
-}
+};
+
+export const getPasswordStrengthMessage = (strength: PasswordValidationResult['strength']): string => {
+  switch (strength) {
+    case 'strong':
+      return 'Strong password';
+    case 'medium':
+      return 'Medium strength password';
+    case 'weak':
+      return 'Weak password';
+    default:
+      return 'Password strength unknown';
+  }
+};
 
 export function getPasswordStrengthWidth(strength: 'weak' | 'medium' | 'strong'): string {
   switch (strength) {

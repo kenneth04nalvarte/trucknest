@@ -9,24 +9,23 @@ import {
   where,
   getDocs,
   GeoPoint,
-  Timestamp
+  Timestamp,
+  getDoc,
+  doc
 } from 'firebase/firestore'
 import { Loader } from '@googlemaps/js-api-loader'
-import LocationNotificationService from '@/services/LocationNotificationService'
+import { LocationNotificationService } from '@/services/location-notification'
 
 interface ParkingSpot {
-  id: string
-  name: string
-  location: GeoPoint
-  address: string
-  availableSpaces: number
-  pricePerHour: number
-  restrictions: {
-    maxLength: number
-    maxHeight: number
-    maxWeight: number
-  }
-  distance?: number
+  id: string;
+  location: {
+    latitude: number;
+    longitude: number;
+  };
+  address: string;
+  available: boolean;
+  price: number;
+  distance?: number;
 }
 
 interface Vehicle {
@@ -163,8 +162,8 @@ export default function RoutePlanner() {
 
       for (const point of waypoints) {
         const location = {
-          lat: point.lat(),
-          lng: point.lng()
+          latitude: point.lat(),
+          longitude: point.lng()
         }
 
         const nearbySpots = await LocationNotificationService.findNearbyParkingSpots(
@@ -186,7 +185,7 @@ export default function RoutePlanner() {
               const marker = new google.maps.Marker({
                 position: { lat: spot.location.latitude, lng: spot.location.longitude },
                 map: googleMapRef.current,
-                title: `${spot.name} (${formatDistance(spot.distance)})`,
+                title: `${spot.address} (${formatDistance(spot.distance || 0)})`,
                 icon: {
                   url: '/parking-marker.png',
                   scaledSize: new google.maps.Size(32, 32)
@@ -243,6 +242,57 @@ export default function RoutePlanner() {
   const handleBookParking = async (spotId: string) => {
     // Implement booking logic here
   }
+
+  const fetchVehicle = async (vehicleId: string) => {
+    try {
+      const vehicleDoc = await getDoc(doc(db, 'vehicles', vehicleId));
+      if (vehicleDoc.exists()) {
+        const vehicleData = vehicleDoc.data();
+        return {
+          ...vehicleData,
+          id: vehicleDoc.id
+        };
+      }
+      return null;
+    } catch (error) {
+      console.error('Error fetching vehicle:', error);
+      return null;
+    }
+  };
+
+  const handleLocationChange = (location: { latitude: number; longitude: number }) => {
+    setCurrentLocation(location);
+    findNearbySpots(location);
+  };
+
+  const findNearbySpots = async (location: { latitude: number; longitude: number }) => {
+    try {
+      const spots = await LocationNotificationService.findNearbyParkingSpots(location);
+      const spotsWithDistance = spots.map(spot => ({
+        ...spot,
+        distance: calculateDistance(
+          location.latitude,
+          location.longitude,
+          spot.location.latitude,
+          spot.location.longitude
+        )
+      }));
+      setParkingSpots(spotsWithDistance);
+    } catch (error) {
+      console.error('Error finding nearby spots:', error);
+    }
+  };
+
+  const startTracking = async () => {
+    if (!defaultVehicle) return;
+
+    const watchId = await LocationNotificationService.startLocationTracking(
+      user?.uid || '',
+      handleLocationChange
+    );
+
+    setLocationWatchId(watchId);
+  };
 
   if (loading) {
     return (
@@ -341,19 +391,15 @@ export default function RoutePlanner() {
                 <div className="flex justify-between items-start">
                   <div>
                     <div className="flex items-center gap-2">
-                      <h3 className="text-lg font-medium text-gray-900">{spot.name}</h3>
+                      <h3 className="text-lg font-medium text-gray-900">{spot.address}</h3>
                       {spot.distance && (
                         <span className="text-sm text-gray-500">
                           ({formatDistance(spot.distance)})
                         </span>
                       )}
                     </div>
-                    <p className="text-sm text-gray-500">{spot.address}</p>
                     <p className="text-sm text-gray-500">
-                      Available spaces: {spot.availableSpaces} • ${spot.pricePerHour}/hour
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      Max: {spot.restrictions.maxLength}' length • {spot.restrictions.maxHeight}' height • {spot.restrictions.maxWeight} lbs
+                      Status: {spot.available ? 'Available' : 'Unavailable'} • ${spot.price}/hour
                     </p>
                   </div>
                   <button

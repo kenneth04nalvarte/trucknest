@@ -17,13 +17,15 @@ import {
   addDoc,
   writeBatch,
   orderBy,
-  limit
+  limit,
+  FirestoreError
 } from 'firebase/firestore'
 import {
   ref,
   uploadBytes,
   getDownloadURL,
-  deleteObject
+  deleteObject,
+  StorageError
 } from 'firebase/storage'
 import { useAuth } from '@/context/AuthContext'
 import { Line } from 'react-chartjs-2'
@@ -35,10 +37,13 @@ import {
   LineElement,
   Title,
   Tooltip,
-  Legend
+  Legend,
+  ChartData
 } from 'chart.js'
 import ReservationCalendar from './ReservationCalendar'
 import PropertyAnalytics from './PropertyAnalytics'
+import { differenceInDays } from 'date-fns'
+import { validateDimensions } from '@/utils/validation'
 
 ChartJS.register(
   CategoryScale,
@@ -51,204 +56,275 @@ ChartJS.register(
 )
 
 interface VehicleType {
-  type: string
-  maxLength: number
-  maxHeight: number
-  maxWeight: number
+  type: string;
+  maxLength: number;
+  maxHeight: number;
+  maxWeight: number;
 }
 
 interface PriceRule {
-  id: string
-  type: 'time' | 'demand' | 'season'
-  multiplier: number
-  startDate?: Date
-  endDate?: Date
-  minOccupancy?: number
-  maxOccupancy?: number
-  description: string
+  id: string;
+  vehicleType: string;
+  hourlyRate: number;
+  dailyRate: number;
+  weeklyRate: number;
+  monthlyRate: number;
 }
 
 interface BaseProperty {
-  id: string
-  name: string
-  address: string
-  description: string
-  basePrice: number
-  totalSpaces: number
-  availableSpaces: number
-  images: string[]
-  allowedVehicleTypes: VehicleType[]
-  priceRules: PriceRule[]
-  amenities: string[]
-  createdAt: Date
-  updatedAt: Date
+  id: string;
+  name: string;
+  address: string;
+  description: string;
+  basePrice: number;
+  totalSpaces: number;
+  availableSpaces: number;
+  allowedVehicleTypes: VehicleType[];
+  priceRules: PriceRule[];
+  amenities: string[];
+  createdAt: Date;
+  updatedAt: Date;
+  ownerId: string;
 }
 
 interface ImageWithOrder {
-  url: string
-  order: number
+  url: string;
+  order: number;
 }
 
-interface Property extends BaseProperty {
-  status: 'active' | 'inactive' | 'maintenance'
+interface Property extends Omit<BaseProperty, 'id'> {
+  id: string;
+  images: ImageWithOrder[];
+  status: 'active' | 'inactive' | 'maintenance';
   analytics: {
-    occupancyRate: number
-    averageStayDuration: number
-    revenue: number
-    lastUpdated: Date
-  }
-  images: ImageWithOrder[]
+    occupancyRate: number;
+    averageStayDuration: number;
+    revenue: number;
+    lastUpdated: Date;
+  };
 }
 
 interface ImageCrop {
-  file: File
-  preview: string
-  crop: Crop
+  file: File;
+  preview: string;
+  crop: Crop;
 }
 
-export default function PropertyManager() {
-  const { user } = useAuth()
-  const [properties, setProperties] = useState<Property[]>([])
-  const [selectedProperties, setSelectedProperties] = useState<Set<string>>(new Set())
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [editingProperty, setEditingProperty] = useState<Property | null>(null)
-  const [showPriceRules, setShowPriceRules] = useState(false)
+interface Booking {
+  id: string;
+  startTime: Date;
+  endTime: Date;
+  totalPrice: number;
+  status: 'pending' | 'confirmed' | 'cancelled';
+}
+
+interface PropertyManagerProps {
+  onError?: (error: Error) => void;
+  onSuccess?: (message: string) => void;
+  className?: string;
+}
+
+interface AnalyticsData {
+  labels: string[];
+  occupancy: number[];
+  revenue: number[];
+  lastUpdated: Date;
+}
+
+interface PropertyFormData extends Omit<BaseProperty, 'id' | 'createdAt' | 'updatedAt' | 'ownerId'> {
+  dimensions?: {
+    length: number;
+    height: number;
+    weight: number;
+  };
+}
+
+interface PropertyAnalytics {
+  occupancyRate: number;
+  averageStayDuration: number;
+  revenue: number;
+  lastUpdated: Date;
+  bookings: Booking[];
+}
+
+export default function PropertyManager({ onError, onSuccess, className }: PropertyManagerProps) {
+  const { user } = useAuth();
+  const [properties, setProperties] = useState<Property[]>([]);
+  const [selectedProperties, setSelectedProperties] = useState<Set<string>>(new Set());
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [editingProperty, setEditingProperty] = useState<Property | null>(null);
+  const [showPriceRules, setShowPriceRules] = useState(false);
   const [newPriceRule, setNewPriceRule] = useState<Partial<PriceRule>>({
-    type: 'time',
-    multiplier: 1
-  })
-  const [croppingImage, setCroppingImage] = useState<ImageCrop | null>(null)
-  const [showAnalytics, setShowAnalytics] = useState(false)
-  const [analyticsData, setAnalyticsData] = useState<{
-    labels: string[]
-    occupancy: number[]
-    revenue: number[]
-  }>({
+    vehicleType: '',
+    hourlyRate: 0,
+    dailyRate: 0,
+    weeklyRate: 0,
+    monthlyRate: 0
+  });
+  const [croppingImage, setCroppingImage] = useState<ImageCrop | null>(null);
+  const [showAnalytics, setShowAnalytics] = useState(false);
+  const [analyticsData, setAnalyticsData] = useState<AnalyticsData>({
     labels: [],
     occupancy: [],
-    revenue: []
-  })
-  const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set())
-  const [showCalendar, setShowCalendar] = useState(false)
+    revenue: [],
+    lastUpdated: new Date()
+  });
+  const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set());
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [newProperty, setNewProperty] = useState<Partial<PropertyFormData>>({
+    status: 'active',
+    priceRules: [],
+    amenities: [],
+    images: [],
+    dimensions: {
+      length: 0,
+      height: 0,
+      weight: 0
+    }
+  });
 
   // Fetch properties
   useEffect(() => {
-    const fetchProperties = async () => {
-      if (!user) return
-      
+    if (!user?.uid) return;
+    
+    const loadProperties = async () => {
       try {
-        const propertiesQuery = query(
-          collection(db, 'properties'),
-          where('ownerId', '==', user.uid)
-        )
-        const snapshot = await getDocs(propertiesQuery)
-        const propertyData = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-          createdAt: doc.data().createdAt?.toDate(),
-          updatedAt: doc.data().updatedAt?.toDate()
-        })) as Property[]
-        
-        setProperties(propertyData)
-        setLoading(false)
-      } catch (err) {
-        console.error('Error fetching properties:', err)
-        setError('Failed to load properties')
-        setLoading(false)
-      }
-    }
+        setLoading(true);
+        const propertiesRef = collection(db, 'properties');
+        const q = query(propertiesRef, where('ownerId', '==', user.uid));
+        const querySnapshot = await getDocs(q);
 
-    fetchProperties()
-  }, [user])
+        const propertiesData: Property[] = [];
+        querySnapshot.forEach((doc) => {
+          const data = doc.data();
+          propertiesData.push({
+            id: doc.id,
+            ...data,
+            createdAt: data.createdAt?.toDate(),
+            updatedAt: data.updatedAt?.toDate()
+          } as Property);
+        });
+        
+        setProperties(propertiesData);
+      } catch (err) {
+        const error = err as FirestoreError;
+        console.error('Error loading properties:', error);
+        setError(`Failed to load properties: ${error.message}`);
+        onError?.(error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadProperties();
+  }, [user?.uid, onError]);
 
   // Image cropping and resizing
   const handleImageCrop = async (crop: Crop) => {
-    if (!croppingImage || !editingProperty) return
+    if (!croppingImage || !editingProperty) return;
 
-    const canvas = document.createElement('canvas')
-    const image = new Image()
-    image.src = croppingImage.preview
+    try {
+      const canvas = document.createElement('canvas');
+      const image = new window.Image();
+      image.src = croppingImage.preview;
 
-    await new Promise(resolve => {
-      image.onload = resolve
-    })
+      await new Promise((resolve, reject) => {
+        image.onload = resolve;
+        image.onerror = reject;
+      });
 
-    const scaleX = image.naturalWidth / image.width
-    const scaleY = image.naturalHeight / image.height
-    const ctx = canvas.getContext('2d')
+      const scaleX = image.naturalWidth / image.width;
+      const scaleY = image.naturalHeight / image.height;
+      const ctx = canvas.getContext('2d');
 
-    canvas.width = crop.width
-    canvas.height = crop.height
+      if (!ctx) {
+        throw new Error('Failed to get canvas context');
+      }
 
-    ctx?.drawImage(
-      image,
-      crop.x * scaleX,
-      crop.y * scaleY,
-      crop.width * scaleX,
-      crop.height * scaleY,
-      0,
-      0,
-      crop.width,
-      crop.height
-    )
+      canvas.width = crop.width;
+      canvas.height = crop.height;
 
-    // Resize if needed
-    const maxWidth = 1200
-    const maxHeight = 800
-    let width = crop.width
-    let height = crop.height
+      ctx.drawImage(
+        image,
+        crop.x * scaleX,
+        crop.y * scaleY,
+        crop.width * scaleX,
+        crop.height * scaleY,
+        0,
+        0,
+        crop.width,
+        crop.height
+      );
 
-    if (width > maxWidth) {
-      height = (height * maxWidth) / width
-      width = maxWidth
+      // Resize if needed
+      const maxWidth = 1200;
+      const maxHeight = 800;
+      let width = crop.width;
+      let height = crop.height;
+
+      if (width > maxWidth) {
+        height = (maxWidth / width) * height;
+        width = maxWidth;
+      }
+
+      if (height > maxHeight) {
+        width = (maxHeight / height) * width;
+        height = maxHeight;
+      }
+
+      const resizedCanvas = document.createElement('canvas');
+      resizedCanvas.width = width;
+      resizedCanvas.height = height;
+      const resizedCtx = resizedCanvas.getContext('2d');
+      resizedCtx?.drawImage(canvas, 0, 0, width, height);
+
+      // Convert to blob and upload
+      const blob = await new Promise<Blob>((resolve) => {
+        resizedCanvas.toBlob((blob) => {
+          if (blob) resolve(blob);
+        }, 'image/jpeg', 0.8);
+      });
+
+      const storageRef = ref(storage, `properties/${editingProperty.id}/images/${croppingImage.file.name}`);
+      await uploadBytes(storageRef, blob);
+      const url = await getDownloadURL(storageRef);
+
+      setEditingProperty(prev => ({
+        ...prev!,
+        images: [...prev!.images, { url, order: prev!.images.length }]
+      }));
+
+      setCroppingImage(null);
+    } catch (error) {
+      console.error('Error processing image:', error);
+      setError('Failed to process image');
+      onError?.(error as Error);
     }
-    if (height > maxHeight) {
-      width = (width * maxHeight) / height
-      height = maxHeight
-    }
-
-    const resizeCanvas = document.createElement('canvas')
-    resizeCanvas.width = width
-    resizeCanvas.height = height
-    const resizeCtx = resizeCanvas.getContext('2d')
-    resizeCtx?.drawImage(canvas, 0, 0, width, height)
-
-    const blob = await new Promise<Blob>((resolve) => {
-      resizeCanvas.toBlob(
-        (blob) => resolve(blob as Blob),
-        'image/jpeg',
-        0.9
-      )
-    })
-
-    const file = new File([blob], croppingImage.file.name, {
-      type: 'image/jpeg'
-    })
-
-    await onDrop([file], editingProperty.id)
-    setCroppingImage(null)
-  }
+  };
 
   // Enhanced image upload handling
-  const onDrop = useCallback(async (acceptedFiles: File[], propertyId: string) => {
-    if (!acceptedFiles.length) return
-
-    const file = acceptedFiles[0]
-    const preview = URL.createObjectURL(file)
-    
-    setCroppingImage({
-      file,
-      preview,
-      crop: {
-        unit: '%',
-        width: 100,
-        height: 100,
-        x: 0,
-        y: 0
+  const handleImageUpload = async (acceptedFiles: File[]) => {
+    try {
+      const uploadedImages: ImageWithOrder[] = [];
+      for (const file of acceptedFiles) {
+        const storageRef = ref(storage, `properties/${editingProperty!.id}/${file.name}`);
+        await uploadBytes(storageRef, file);
+        const downloadURL = await getDownloadURL(storageRef);
+        uploadedImages.push({
+          url: downloadURL,
+          order: uploadedImages.length,
+        });
       }
-    })
-  }, [])
+      setEditingProperty(prev => ({
+        ...prev!,
+        images: [...prev!.images, ...uploadedImages],
+      }));
+    } catch (error) {
+      console.error('Error uploading images:', error);
+      setError('Failed to upload images');
+    }
+  };
 
   // Bulk operations
   const handleBulkPriceUpdate = async (percentage: number) => {
@@ -284,70 +360,50 @@ export default function PropertyManager() {
   }
 
   // Price rule management
-  const addPriceRule = async () => {
-    if (!editingProperty || !newPriceRule.type || !newPriceRule.multiplier) return
-
+  const handleAddPriceRule = async () => {
     try {
-      const priceRule: PriceRule = {
-        id: Math.random().toString(36).substr(2, 9),
-        ...newPriceRule as PriceRule
-      }
-
-      const updatedRules = [...editingProperty.priceRules, priceRule]
-      await updateDoc(doc(db, 'properties', editingProperty.id), {
-        priceRules: updatedRules,
-        updatedAt: new Date()
-      })
-
-      setProperties(properties.map(p =>
-        p.id === editingProperty.id
-          ? { ...p, priceRules: updatedRules, updatedAt: new Date() }
-          : p
-      ))
-
-      setNewPriceRule({ type: 'time', multiplier: 1 })
-    } catch (err) {
-      console.error('Error adding price rule:', err)
-      setError('Failed to add price rule')
+      const updatedRules = [...editingProperty!.priceRules, newPriceRule];
+      const vehicleTypes: VehicleType[] = updatedRules.map(rule => ({
+        type: rule.vehicleType,
+        maxLength: 0,
+        maxHeight: 0,
+        maxWeight: 0
+      }));
+      await updateAllowedVehicles(vehicleTypes);
+    } catch (error) {
+      console.error('Error adding price rule:', error);
     }
-  }
+  };
 
   // Vehicle type management
-  const updateAllowedVehicles = async (vehicles: VehicleType[]) => {
-    if (!editingProperty) return
+  const updateAllowedVehicles = async (vehicleTypes: VehicleType[]) => {
+    if (!editingProperty) return;
 
     try {
       await updateDoc(doc(db, 'properties', editingProperty.id), {
-        allowedVehicleTypes: vehicles,
+        allowedVehicleTypes: vehicleTypes,
         updatedAt: new Date()
-      })
+      });
 
       setProperties(properties.map(p =>
         p.id === editingProperty.id
-          ? { ...p, allowedVehicleTypes: vehicles, updatedAt: new Date() }
+          ? { ...p, allowedVehicleTypes: vehicleTypes, updatedAt: new Date() }
           : p
-      ))
-    } catch (err) {
-      console.error('Error updating allowed vehicles:', err)
-      setError('Failed to update allowed vehicles')
+      ));
+    } catch (error) {
+      console.error('Error updating allowed vehicles:', error);
     }
-  }
+  };
 
   // Property status management
   const updatePropertyStatus = async (propertyId: string, status: Property['status']) => {
     try {
-      await updateDoc(doc(db, 'properties', propertyId), {
-        status,
-        updatedAt: new Date()
-      })
-
-      setProperties(properties.map(p =>
-        p.id === propertyId
-          ? { ...p, status, updatedAt: new Date() }
-          : p
-      ))
-    } catch (err) {
-      console.error('Error updating property status:', err)
+      await updateDoc(doc(db, 'properties', propertyId), { status })
+      setProperties((prev) =>
+        prev.map((p) => (p.id === propertyId ? { ...p, status } : p))
+      )
+    } catch (error) {
+      console.error('Error updating property status:', error)
       setError('Failed to update property status')
     }
   }
@@ -427,7 +483,7 @@ export default function PropertyManager() {
         })
         const revenue = labels.map(date => dailyData.get(date).revenue)
 
-        setAnalyticsData({ labels, occupancy, revenue })
+        setAnalyticsData({ labels, occupancy, revenue, lastUpdated: new Date() })
       }
     } catch (err) {
       console.error('Error fetching analytics:', err)
@@ -500,6 +556,119 @@ export default function PropertyManager() {
       setError('Failed to reorder images')
     }
   }
+
+  const calculateAnalytics = (bookings: Booking[]): PropertyAnalytics => {
+    const data: PropertyAnalytics = {
+      occupancyRate: 0,
+      averageStayDuration: 0,
+      revenue: 0,
+      lastUpdated: new Date(),
+      bookings: []
+    };
+
+    if (bookings.length > 0) {
+      const totalDays = 30; // Assuming a 30-day period
+      const occupiedDays = bookings.reduce((acc, booking) => {
+        const duration = differenceInDays(booking.endTime, booking.startTime);
+        return acc + duration;
+      }, 0);
+
+      data.occupancyRate = (occupiedDays / totalDays) * 100;
+      data.averageStayDuration = occupiedDays / bookings.length;
+      data.revenue = bookings.reduce((acc, booking) => acc + (booking.totalPrice || 0), 0);
+      data.bookings = bookings;
+    }
+
+    return data;
+  };
+
+  const { getRootProps, getInputProps } = useDropzone({
+    accept: {
+      'image/*': ['.jpeg', '.jpg', '.png', '.gif'],
+    },
+    onDrop: handleImageUpload,
+  });
+
+  const handleCreateProperty = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!user?.uid) return;
+
+    try {
+      const dimensionsValidation = validateDimensions(
+        newProperty.dimensions?.length || 0,
+        newProperty.dimensions?.height || 0,
+        newProperty.dimensions?.weight || 0
+      );
+
+      if (!dimensionsValidation.isValid) {
+        setError(dimensionsValidation.errors.join(', '));
+        return;
+      }
+
+      const propertyData: Omit<Property, 'id'> = {
+        ...newProperty as Omit<Property, 'id'>,
+        ownerId: user.uid,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      const docRef = await addDoc(collection(db, 'properties'), propertyData);
+      const newPropertyWithId: Property = {
+        ...propertyData,
+        id: docRef.id
+      };
+
+      setProperties(prev => [...prev, newPropertyWithId]);
+      setNewProperty({
+        status: 'active',
+        priceRules: [],
+        amenities: [],
+        images: [],
+        dimensions: {
+          length: 0,
+          height: 0,
+          weight: 0
+        }
+      });
+      onSuccess?.('Property created successfully');
+    } catch (err) {
+      const error = err as Error;
+      console.error('Error creating property:', error);
+      setError(`Failed to create property: ${error.message}`);
+      onError?.(error);
+    }
+  };
+
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
+    const { name, value } = e.target;
+    
+    if (name.startsWith('priceRules.')) {
+      const [_, field] = name.split('.');
+      setNewProperty(prev => ({
+        ...prev,
+        priceRules: {
+          ...prev.priceRules,
+          [field]: parseFloat(value) || 0
+        }
+      }));
+    } else if (name.startsWith('dimensions.')) {
+      const [_, field] = name.split('.');
+      setNewProperty(prev => ({
+        ...prev,
+        dimensions: {
+          ...prev.dimensions,
+          [field]: parseFloat(value) || 0
+        }
+      }));
+    } else {
+      setNewProperty(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
+  };
 
   if (loading) {
     return (
@@ -797,77 +966,102 @@ export default function PropertyManager() {
 
               {showPriceRules && (
                 <div className="mt-4 space-y-4">
-                  {editingProperty.priceRules.map(rule => (
-                    <div
-                      key={rule.id}
-                      className="border rounded p-4 flex justify-between items-center"
-                    >
-                      <div>
-                        <p className="font-medium">{rule.description}</p>
-                        <p className="text-sm text-gray-500">
-                          Multiplier: {rule.multiplier}x
-                        </p>
+                  {editingProperty.priceRules.map((rule) => (
+                    <div key={rule.id} className="border p-4 rounded-lg">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <p className="font-medium">Vehicle Type: {rule.vehicleType}</p>
+                          <p>Hourly Rate: ${rule.hourlyRate}</p>
+                          <p>Daily Rate: ${rule.dailyRate}</p>
+                          <p>Weekly Rate: ${rule.weeklyRate}</p>
+                          <p>Monthly Rate: ${rule.monthlyRate}</p>
+                        </div>
+                        <button
+                          onClick={() => {
+                            const updatedRules = editingProperty.priceRules.filter(
+                              r => r.id !== rule.id
+                            )
+                            updateAllowedVehicles(updatedRules)
+                          }}
+                          className="text-red-500 hover:text-red-700"
+                        >
+                          Delete
+                        </button>
                       </div>
-                      <button
-                        onClick={async () => {
-                          const updated = editingProperty.priceRules.filter(
-                            r => r.id !== rule.id
-                          )
-                          await updateDoc(
-                            doc(db, 'properties', editingProperty.id),
-                            {
-                              priceRules: updated,
-                              updatedAt: new Date()
-                            }
-                          )
-                          setProperties(properties.map(p =>
-                            p.id === editingProperty.id
-                              ? {
-                                  ...p,
-                                  priceRules: updated,
-                                  updatedAt: new Date()
-                                }
-                              : p
-                          ))
-                        }}
-                        className="text-red-600 hover:text-red-800"
-                      >
-                        Remove
-                      </button>
                     </div>
                   ))}
 
                   {/* Add New Rule */}
                   <div className="border rounded p-4">
                     <select
-                      value={newPriceRule.type}
+                      value={newPriceRule.vehicleType}
                       onChange={(e) =>
                         setNewPriceRule({
                           ...newPriceRule,
-                          type: e.target.value as 'time' | 'demand' | 'season'
+                          vehicleType: e.target.value as string
                         })
                       }
                       className="border rounded px-3 py-2 mr-4"
                     >
-                      <option value="time">Time-based</option>
-                      <option value="demand">Demand-based</option>
-                      <option value="season">Seasonal</option>
+                      <option value="">Select Vehicle Type</option>
+                      {properties.map(p => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
                     </select>
                     <input
                       type="number"
                       step="0.1"
-                      value={newPriceRule.multiplier}
+                      value={newPriceRule.hourlyRate}
                       onChange={(e) =>
                         setNewPriceRule({
                           ...newPriceRule,
-                          multiplier: parseFloat(e.target.value)
+                          hourlyRate: parseFloat(e.target.value)
                         })
                       }
-                      placeholder="Multiplier"
+                      placeholder="Hourly Rate"
                       className="border rounded px-3 py-2 mr-4"
                     />
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={newPriceRule.dailyRate}
+                      onChange={(e) =>
+                        setNewPriceRule({
+                          ...newPriceRule,
+                          dailyRate: parseFloat(e.target.value)
+                        })
+                      }
+                      placeholder="Daily Rate"
+                      className="border rounded px-3 py-2 mr-4"
+                    />
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={newPriceRule.weeklyRate}
+                      onChange={(e) =>
+                        setNewPriceRule({
+                          ...newPriceRule,
+                          weeklyRate: parseFloat(e.target.value)
+                        })
+                      }
+                      placeholder="Weekly Rate"
+                      className="border rounded px-3 py-2 mr-4"
+                    />
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={newPriceRule.monthlyRate}
+                      onChange={(e) =>
+                        setNewPriceRule({
+                          ...newPriceRule,
+                          monthlyRate: parseFloat(e.target.value)
+                        })
+                      }
+                      placeholder="Monthly Rate"
+                      className="border rounded px-3 py-2"
+                    />
                     <button
-                      onClick={addPriceRule}
+                      onClick={handleAddPriceRule}
                       className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
                     >
                       Add Rule
@@ -933,6 +1127,183 @@ export default function PropertyManager() {
           {error}
         </div>
       )}
+
+      <form onSubmit={handleCreateProperty} className="space-y-4">
+        <div>
+          <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+            Property Name
+          </label>
+          <input
+            type="text"
+            id="name"
+            name="name"
+            value={newProperty.name || ''}
+            onChange={handleInputChange}
+            required
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+          />
+        </div>
+
+        <div>
+          <label htmlFor="address" className="block text-sm font-medium text-gray-700">
+            Address
+          </label>
+          <input
+            type="text"
+            id="address"
+            name="address"
+            value={newProperty.address || ''}
+            onChange={handleInputChange}
+            required
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+          />
+        </div>
+
+        <div>
+          <label htmlFor="description" className="block text-sm font-medium text-gray-700">
+            Description
+          </label>
+          <textarea
+            id="description"
+            name="description"
+            value={newProperty.description || ''}
+            onChange={handleInputChange}
+            required
+            rows={3}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label htmlFor="dimensions.length" className="block text-sm font-medium text-gray-700">
+              Length (ft)
+            </label>
+            <input
+              type="number"
+              id="dimensions.length"
+              name="dimensions.length"
+              value={newProperty.dimensions?.length || 0}
+              onChange={handleInputChange}
+              required
+              min="0"
+              step="0.1"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="dimensions.height" className="block text-sm font-medium text-gray-700">
+              Height (ft)
+            </label>
+            <input
+              type="number"
+              id="dimensions.height"
+              name="dimensions.height"
+              value={newProperty.dimensions?.height || 0}
+              onChange={handleInputChange}
+              required
+              min="0"
+              step="0.1"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="dimensions.weight" className="block text-sm font-medium text-gray-700">
+              Weight (lbs)
+            </label>
+            <input
+              type="number"
+              id="dimensions.weight"
+              name="dimensions.weight"
+              value={newProperty.dimensions?.weight || 0}
+              onChange={handleInputChange}
+              required
+              min="0"
+              step="0.1"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label htmlFor="priceRules.hourly" className="block text-sm font-medium text-gray-700">
+              Hourly Rate ($)
+            </label>
+            <input
+              type="number"
+              id="priceRules.hourly"
+              name="priceRules.hourly"
+              value={newProperty.priceRules?.hourly || 0}
+              onChange={handleInputChange}
+              required
+              min="0"
+              step="0.01"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="priceRules.daily" className="block text-sm font-medium text-gray-700">
+              Daily Rate ($)
+            </label>
+            <input
+              type="number"
+              id="priceRules.daily"
+              name="priceRules.daily"
+              value={newProperty.priceRules?.daily || 0}
+              onChange={handleInputChange}
+              required
+              min="0"
+              step="0.01"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="priceRules.weekly" className="block text-sm font-medium text-gray-700">
+              Weekly Rate ($)
+            </label>
+            <input
+              type="number"
+              id="priceRules.weekly"
+              name="priceRules.weekly"
+              value={newProperty.priceRules?.weekly || 0}
+              onChange={handleInputChange}
+              required
+              min="0"
+              step="0.01"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="priceRules.monthly" className="block text-sm font-medium text-gray-700">
+              Monthly Rate ($)
+            </label>
+            <input
+              type="number"
+              id="priceRules.monthly"
+              name="priceRules.monthly"
+              value={newProperty.priceRules?.monthly || 0}
+              onChange={handleInputChange}
+              required
+              min="0"
+              step="0.01"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            />
+          </div>
+        </div>
+
+        <button
+          type="submit"
+          className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+        >
+          Create Property
+        </button>
+      </form>
     </div>
   )
 } 

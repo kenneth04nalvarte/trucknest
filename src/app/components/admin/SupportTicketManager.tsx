@@ -136,25 +136,24 @@ export default function SupportTicketManager() {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!selectedTicket || !newMessage.trim()) return
+    if (!selectedTicket || !user || !newMessage.trim()) {
+      console.error('Missing required data:', { selectedTicket: !!selectedTicket, user: !!user, newMessage: !!newMessage.trim() })
+      return
+    }
 
     try {
-      await addDoc(collection(db, 'ticketMessages'), {
+      const messageData = {
         ticketId: selectedTicket.id,
         userId: user.uid,
         message: newMessage.trim(),
         createdAt: Timestamp.now(),
         isStaff: true
-      })
+      }
 
-      await updateDoc(doc(db, 'supportTickets', selectedTicket.id), {
-        updatedAt: Timestamp.now()
-      })
-
+      await addDoc(collection(db, 'ticketMessages'), messageData)
       setNewMessage('')
     } catch (err) {
       console.error('Error sending message:', err)
-      setError('Failed to send message')
     }
   }
 

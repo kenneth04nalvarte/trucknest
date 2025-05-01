@@ -1,19 +1,47 @@
 import { useState, useEffect } from 'react';
-import { db } from '../firebase';
-import { doc, getDoc, updateDoc, collection, addDoc, query, where, getDocs } from 'firebase/firestore';
+import { useAuth } from '@/context/AuthContext';
+import { db } from '@/config/firebase';
+import {
+    collection,
+    query,
+    where,
+    getDocs,
+    addDoc,
+    doc,
+    updateDoc
+} from 'firebase/firestore';
 
-const ReferralProgram = ({ userId }) => {
-    const [referralCode, setReferralCode] = useState('');
-    const [referralStats, setReferralStats] = useState({
+interface Referral {
+    id: string;
+    code: string;
+    referredBy: string;
+    status: 'pending' | 'completed';
+    rewardAmount: number;
+    createdAt: string;
+}
+
+interface ReferralStats {
+    totalReferrals: number;
+    earnedRewards: number;
+    pendingRewards: number;
+}
+
+export default function ReferralProgram() {
+    const { user } = useAuth();
+    const [referralStats, setReferralStats] = useState<ReferralStats>({
         totalReferrals: 0,
-        pendingRewards: 0,
-        earnedRewards: 0
+        earnedRewards: 0,
+        pendingRewards: 0
     });
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+    const [referralCode, setReferralCode] = useState('');
 
     useEffect(() => {
-        loadReferralData();
-    }, [userId]);
+        if (user) {
+            loadReferralData();
+        }
+    }, [user]);
 
     const loadReferralData = async () => {
         try {
