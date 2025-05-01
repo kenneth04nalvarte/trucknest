@@ -20,7 +20,10 @@ const nextConfig = {
         ...config.resolve.fallback,
         fs: false,
         net: false,
-        tls: false
+        tls: false,
+        dns: false,
+        child_process: false,
+        worker_threads: false
       }
     }
     config.resolve.alias = {
