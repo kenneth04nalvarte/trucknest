@@ -330,6 +330,7 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`), _co
                 addStub(context, name);
             }
             Object.assign(context, wasm);
+            context.performance = performance;
             context.AsyncLocalStorage = _async_hooks.AsyncLocalStorage;
             // @ts-ignore the timeouts have weird types in the edge runtime
             context.setInterval = (...args)=>_resourcemanagers.intervalsManager.add(args);

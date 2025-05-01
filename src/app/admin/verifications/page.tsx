@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '../../context/AuthContext'
 import AdminVerificationPanel from '../../components/AdminVerificationPanel'
-import { db } from '../../config/firebase'
+import { db } from '@/config/firebase'
 import { doc, getDoc } from 'firebase/firestore'
 
 export default function AdminVerificationsPage() {

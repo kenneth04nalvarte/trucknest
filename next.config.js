@@ -23,6 +23,10 @@ const nextConfig = {
         tls: false
       }
     }
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@': __dirname + '/src'
+    }
     return config
   },
   async headers() {

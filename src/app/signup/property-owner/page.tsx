@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '../../context/AuthContext'
-import { db } from '../../config/firebase'
+import { db } from '@/config/firebase'
 import { doc, setDoc } from 'firebase/firestore'
 import AddressAutocomplete from '../../components/AddressAutocomplete'
 
