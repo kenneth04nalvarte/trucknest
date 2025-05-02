@@ -108,6 +108,7 @@ declare module 'jspdf' {
       styles?: Record<string, unknown>
       headStyles?: Record<string, unknown>
       bodyStyles?: Record<string, unknown>
+      startY?: number
     }) => jsPDF
   }
 }

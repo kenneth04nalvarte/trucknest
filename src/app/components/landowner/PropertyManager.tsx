@@ -63,12 +63,15 @@ interface VehicleType {
 }
 
 interface PriceRule {
-  id: string;
-  vehicleType: string;
-  hourlyRate: number;
-  dailyRate: number;
-  weeklyRate: number;
-  monthlyRate: number;
+  id?: string;
+  type: string;
+  maxLength: number;
+  maxHeight: number;
+  maxWeight: number;
+  hourly: number;
+  daily: number;
+  weekly: number;
+  monthly: number;
 }
 
 interface BaseProperty {
@@ -132,11 +135,12 @@ interface AnalyticsData {
 }
 
 interface PropertyFormData extends Omit<BaseProperty, 'id' | 'createdAt' | 'updatedAt' | 'ownerId'> {
-  dimensions?: {
+  dimensions: {
     length: number;
     height: number;
     weight: number;
   };
+  priceRules: PriceRule[];
 }
 
 interface PropertyAnalytics {
@@ -156,11 +160,14 @@ export default function PropertyManager({ onError, onSuccess, className }: Prope
   const [editingProperty, setEditingProperty] = useState<Property | null>(null);
   const [showPriceRules, setShowPriceRules] = useState(false);
   const [newPriceRule, setNewPriceRule] = useState<Partial<PriceRule>>({
-    vehicleType: '',
-    hourlyRate: 0,
-    dailyRate: 0,
-    weeklyRate: 0,
-    monthlyRate: 0
+    type: '',
+    maxLength: 0,
+    maxHeight: 0,
+    maxWeight: 0,
+    hourly: 0,
+    daily: 0,
+    weekly: 0,
+    monthly: 0
   });
   const [croppingImage, setCroppingImage] = useState<ImageCrop | null>(null);
   const [showAnalytics, setShowAnalytics] = useState(false);
@@ -173,10 +180,15 @@ export default function PropertyManager({ onError, onSuccess, className }: Prope
   const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set());
   const [showCalendar, setShowCalendar] = useState(false);
   const [newProperty, setNewProperty] = useState<Partial<PropertyFormData>>({
-    status: 'active',
+    name: '',
+    address: '',
+    description: '',
+    basePrice: 0,
+    totalSpaces: 0,
+    availableSpaces: 0,
+    allowedVehicleTypes: [],
     priceRules: [],
     amenities: [],
-    images: [],
     dimensions: {
       length: 0,
       height: 0,
@@ -364,10 +376,10 @@ export default function PropertyManager({ onError, onSuccess, className }: Prope
     try {
       const updatedRules = [...editingProperty!.priceRules, newPriceRule];
       const vehicleTypes: VehicleType[] = updatedRules.map(rule => ({
-        type: rule.vehicleType,
-        maxLength: 0,
-        maxHeight: 0,
-        maxWeight: 0
+        type: rule.type || '',
+        maxLength: rule.maxLength || 0,
+        maxHeight: rule.maxHeight || 0,
+        maxWeight: rule.maxWeight || 0
       }));
       await updateAllowedVehicles(vehicleTypes);
     } catch (error) {
@@ -620,10 +632,15 @@ export default function PropertyManager({ onError, onSuccess, className }: Prope
 
       setProperties(prev => [...prev, newPropertyWithId]);
       setNewProperty({
-        status: 'active',
+        name: '',
+        address: '',
+        description: '',
+        basePrice: 0,
+        totalSpaces: 0,
+        availableSpaces: 0,
+        allowedVehicleTypes: [],
         priceRules: [],
         amenities: [],
-        images: [],
         dimensions: {
           length: 0,
           height: 0,
@@ -970,11 +987,11 @@ export default function PropertyManager({ onError, onSuccess, className }: Prope
                     <div key={rule.id} className="border p-4 rounded-lg">
                       <div className="flex justify-between items-center">
                         <div>
-                          <p className="font-medium">Vehicle Type: {rule.vehicleType}</p>
-                          <p>Hourly Rate: ${rule.hourlyRate}</p>
-                          <p>Daily Rate: ${rule.dailyRate}</p>
-                          <p>Weekly Rate: ${rule.weeklyRate}</p>
-                          <p>Monthly Rate: ${rule.monthlyRate}</p>
+                          <p className="font-medium">Vehicle Type: {rule.type}</p>
+                          <p>Hourly Rate: ${rule.hourly}</p>
+                          <p>Daily Rate: ${rule.daily}</p>
+                          <p>Weekly Rate: ${rule.weekly}</p>
+                          <p>Monthly Rate: ${rule.monthly}</p>
                         </div>
                         <button
                           onClick={() => {
@@ -994,11 +1011,11 @@ export default function PropertyManager({ onError, onSuccess, className }: Prope
                   {/* Add New Rule */}
                   <div className="border rounded p-4">
                     <select
-                      value={newPriceRule.vehicleType}
+                      value={newPriceRule.type}
                       onChange={(e) =>
                         setNewPriceRule({
                           ...newPriceRule,
-                          vehicleType: e.target.value as string
+                          type: e.target.value as string
                         })
                       }
                       className="border rounded px-3 py-2 mr-4"
@@ -1011,11 +1028,11 @@ export default function PropertyManager({ onError, onSuccess, className }: Prope
                     <input
                       type="number"
                       step="0.1"
-                      value={newPriceRule.hourlyRate}
+                      value={newPriceRule.hourly}
                       onChange={(e) =>
                         setNewPriceRule({
                           ...newPriceRule,
-                          hourlyRate: parseFloat(e.target.value)
+                          hourly: parseFloat(e.target.value)
                         })
                       }
                       placeholder="Hourly Rate"
@@ -1024,11 +1041,11 @@ export default function PropertyManager({ onError, onSuccess, className }: Prope
                     <input
                       type="number"
                       step="0.1"
-                      value={newPriceRule.dailyRate}
+                      value={newPriceRule.daily}
                       onChange={(e) =>
                         setNewPriceRule({
                           ...newPriceRule,
-                          dailyRate: parseFloat(e.target.value)
+                          daily: parseFloat(e.target.value)
                         })
                       }
                       placeholder="Daily Rate"
@@ -1037,11 +1054,11 @@ export default function PropertyManager({ onError, onSuccess, className }: Prope
                     <input
                       type="number"
                       step="0.1"
-                      value={newPriceRule.weeklyRate}
+                      value={newPriceRule.weekly}
                       onChange={(e) =>
                         setNewPriceRule({
                           ...newPriceRule,
-                          weeklyRate: parseFloat(e.target.value)
+                          weekly: parseFloat(e.target.value)
                         })
                       }
                       placeholder="Weekly Rate"
@@ -1050,11 +1067,11 @@ export default function PropertyManager({ onError, onSuccess, className }: Prope
                     <input
                       type="number"
                       step="0.1"
-                      value={newPriceRule.monthlyRate}
+                      value={newPriceRule.monthly}
                       onChange={(e) =>
                         setNewPriceRule({
                           ...newPriceRule,
-                          monthlyRate: parseFloat(e.target.value)
+                          monthly: parseFloat(e.target.value)
                         })
                       }
                       placeholder="Monthly Rate"

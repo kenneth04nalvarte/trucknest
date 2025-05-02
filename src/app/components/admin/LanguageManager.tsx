@@ -120,10 +120,18 @@ export default function LanguageManager() {
       const snapshot = await getDocs(translationsRef);
       
       const translationsData = snapshot.docs
-        .map((doc: QueryDocumentSnapshot<DocumentData>) => ({
-          id: doc.id,
-          ...doc.data()
-        }))
+        .map((doc: QueryDocumentSnapshot<DocumentData>) => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            languageCode: data.languageCode,
+            key: data.key,
+            value: data.value,
+            category: data.category,
+            createdAt: data.createdAt,
+            updatedAt: data.updatedAt
+          } as Translation;
+        })
         .filter((translation: Translation) => translation.languageCode === languageCode);
       
       updateState({ translations: translationsData });

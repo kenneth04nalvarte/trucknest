@@ -1,6 +1,7 @@
 import { FirebaseApp } from 'firebase/app';
 import { getAnalytics, logEvent, Analytics } from 'firebase/analytics';
-import { getPerformance, trace, Performance } from 'firebase/performance';
+import { getPerformance, trace } from 'firebase/performance';
+import { FirebasePerformance } from 'firebase/performance';
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
@@ -14,19 +15,24 @@ export interface LogEntry {
 
 export interface LoggingConfig {
   app: FirebaseApp;
-  logLevel: LogLevel;
-  enableAnalytics: boolean;
-  enablePerformance: boolean;
+  enableAnalytics?: boolean;
+  enablePerformance?: boolean;
+  logLevel?: LogLevel;
 }
 
 export class LoggingService {
   private static instance: LoggingService;
   private analytics: Analytics | null = null;
-  private performance: Performance | null = null;
+  private performance: FirebasePerformance | null = null;
   private config: LoggingConfig;
 
-  private constructor(config: LoggingConfig) {
-    this.config = config;
+  constructor(config: LoggingConfig) {
+    this.config = {
+      enableAnalytics: true,
+      enablePerformance: true,
+      logLevel: 'info',
+      ...config
+    };
     this.initialize();
   }
 
@@ -39,11 +45,19 @@ export class LoggingService {
 
   private initialize(): void {
     if (this.config.enableAnalytics) {
-      this.analytics = getAnalytics(this.config.app);
+      try {
+        this.analytics = getAnalytics(this.config.app);
+      } catch (error) {
+        console.error('Failed to initialize analytics:', error);
+      }
     }
 
     if (this.config.enablePerformance) {
-      this.performance = getPerformance(this.config.app);
+      try {
+        this.performance = getPerformance(this.config.app);
+      } catch (error) {
+        console.error('Failed to initialize performance monitoring:', error);
+      }
     }
   }
 
@@ -138,5 +152,14 @@ export class LoggingService {
 
   public error(message: string, error?: Error, metadata?: Record<string, unknown>): void {
     this.log('error', message, error, metadata);
+  }
+
+  public startTrace(traceName: string) {
+    if (!this.performance) {
+      console.warn('Performance monitoring is not initialized');
+      return null;
+    }
+
+    return trace(this.performance, traceName);
   }
 } 

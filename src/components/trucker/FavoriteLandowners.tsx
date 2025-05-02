@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { collection, query, where, getDocs, doc, setDoc, deleteDoc, getDoc, addDoc, FirestoreError } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { useAuth } from '@/context/AuthContext';
-import { Property } from '@/types/property';
+import { Property as PropertyType } from '@/types/property';
 
 interface BaseLandowner {
   id: string;
@@ -18,7 +18,7 @@ interface BaseLandowner {
 }
 
 interface Landowner extends BaseLandowner {
-  properties: Property[];
+  properties: PropertyType[];
 }
 
 interface Property {
@@ -107,7 +107,7 @@ export default function FavoriteLandowners() {
         const propertiesList = propertiesSnapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
-        })) as Property[];
+        })) as PropertyType[];
 
         landownersList.push({
           id: landownerDoc.id,

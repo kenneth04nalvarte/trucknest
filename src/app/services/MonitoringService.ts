@@ -1,6 +1,6 @@
 import { FirebaseApp } from 'firebase/app';
 import { getAnalytics, Analytics } from 'firebase/analytics';
-import { getPerformance, Performance } from 'firebase/performance';
+import { getPerformance, FirebasePerformance, trace } from 'firebase/performance';
 import { LoggingService } from './LoggingService';
 
 export interface MonitoringConfig {
@@ -23,7 +23,7 @@ export interface AlertThreshold {
 export class MonitoringService {
   private static instance: MonitoringService;
   private analytics: Analytics | null = null;
-  private performance: Performance | null = null;
+  private performance: FirebasePerformance | null = null;
   private logger: LoggingService;
   private config: MonitoringConfig;
   private alertThresholds: AlertThreshold[] = [];
@@ -48,11 +48,19 @@ export class MonitoringService {
 
   private initialize(): void {
     if (this.config.enableAnalytics) {
-      this.analytics = getAnalytics(this.config.app);
+      try {
+        this.analytics = getAnalytics(this.config.app);
+      } catch (error) {
+        console.error('Failed to initialize analytics:', error);
+      }
     }
 
     if (this.config.enablePerformance) {
-      this.performance = getPerformance(this.config.app);
+      try {
+        this.performance = getPerformance(this.config.app);
+      } catch (error) {
+        console.error('Failed to initialize performance monitoring:', error);
+      }
     }
 
     // Set up error tracking
@@ -177,5 +185,31 @@ export class MonitoringService {
     if (!this.config.enablePerformance) return;
 
     this.logPerformanceMetric(name, { duration, ...data });
+  }
+
+  public getNavigationTiming(): Record<string, number> {
+    if (typeof window === 'undefined') {
+      return {};
+    }
+
+    const navigationTiming = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;
+    if (!navigationTiming) {
+      return {};
+    }
+
+    return {
+      loadTime: navigationTiming.loadEventEnd - navigationTiming.startTime,
+      domContentLoadedTime: navigationTiming.domContentLoadedEventEnd - navigationTiming.startTime,
+      firstPaint: navigationTiming.domInteractive - navigationTiming.startTime,
+    };
+  }
+
+  public startTrace(name: string) {
+    if (!this.performance) {
+      console.warn('Performance monitoring is not initialized');
+      return null;
+    }
+
+    return trace(this.performance, name);
   }
 } 

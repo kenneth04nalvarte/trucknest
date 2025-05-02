@@ -62,7 +62,7 @@ export class NotificationService {
     }
   }
 
-  private static convertToFirestoreData(notification: Notification): DocumentData {
+  private static convertToFirestoreData(notification: Omit<Notification, 'id'> | Notification): DocumentData {
     return {
       ...notification,
       createdAt: Timestamp.fromDate(notification.createdAt),
@@ -89,7 +89,7 @@ export class NotificationService {
     try {
       this.validateNotificationParams(params);
 
-      const notification: Notification = {
+      const notification: Omit<Notification, 'id'> = {
         ...params,
         read: false,
         createdAt: new Date()
@@ -159,5 +159,4 @@ export class NotificationService {
       throw new Error(`Failed to create notifications for users: ${firestoreError.message}`);
     }
   }
-} 
 } 

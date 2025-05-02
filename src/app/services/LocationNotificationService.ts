@@ -8,7 +8,7 @@ import {
   addDoc,
   Timestamp
 } from 'firebase/firestore'
-import NotificationService from './NotificationService'
+import { NotificationService } from './NotificationService'
 
 interface ParkingSpot {
   id: string
