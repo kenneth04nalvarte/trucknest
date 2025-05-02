@@ -9,6 +9,8 @@
 # next.js
 /.next/
 /out/
+.next/
+node_modules/@next/swc-*
 
 # production
 /build
@@ -16,6 +18,12 @@
 # misc
 .DS_Store
 *.pem
+*.log
+*.log.*
+logs
+*.pid
+*.seed
+*.pid.lock
 
 # debug
 npm-debug.log*
@@ -25,6 +33,9 @@ yarn-error.log*
 # local env files
 .env*.local
 .env
+.env.development
+.env.production
+.env.test
 
 # vercel
 .vercel
@@ -35,4 +46,21 @@ next-env.d.ts
 
 # IDE
 .vscode/
-.idea/ 
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Build output
+dist/
+build/
+out/
+.next/
+.next/cache/
+.next/swc/
+
+# Cache
+.cache/
+.temp/
+.tmp/ 
