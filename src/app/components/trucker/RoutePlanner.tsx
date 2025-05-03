@@ -48,6 +48,8 @@ export default function RoutePlanner() {
   const [selectedSpot, setSelectedSpot] = useState<ParkingSpot | null>(null)
   const [isTrackingEnabled, setIsTrackingEnabled] = useState(false)
   const [defaultVehicle, setDefaultVehicle] = useState<Vehicle | null>(null)
+  const [currentLocation, setCurrentLocation] = useState<{ latitude: number; longitude: number } | null>(null)
+  const [parkingSpots, setParkingSpots] = useState<ParkingSpot[]>([])
   const mapRef = useRef<HTMLDivElement>(null)
   const googleMapRef = useRef<google.maps.Map | null>(null)
   const directionsServiceRef = useRef<google.maps.DirectionsService | null>(null)
@@ -119,8 +121,8 @@ export default function RoutePlanner() {
       if (!snapshot.empty) {
         const vehicleData = snapshot.docs[0].data() as Vehicle
         setDefaultVehicle({
-          id: snapshot.docs[0].id,
-          ...vehicleData
+          ...vehicleData,
+          id: snapshot.docs[0].id
         })
       }
     } catch (err) {
@@ -166,14 +168,7 @@ export default function RoutePlanner() {
           longitude: point.lng()
         }
 
-        const nearbySpots = await LocationNotificationService.findNearbyParkingSpots(
-          location,
-          defaultVehicle ? {
-            length: defaultVehicle.length,
-            height: defaultVehicle.height,
-            weight: defaultVehicle.weight
-          } : undefined
-        )
+        const nearbySpots = await LocationNotificationService.findNearbyParkingSpots(location)
 
         nearbySpots.forEach(spot => {
           if (!processedSpotIds.has(spot.id)) {
@@ -185,7 +180,7 @@ export default function RoutePlanner() {
               const marker = new google.maps.Marker({
                 position: { lat: spot.location.latitude, lng: spot.location.longitude },
                 map: googleMapRef.current,
-                title: `${spot.address} (${formatDistance(spot.distance || 0)})`,
+                title: `${spot.address} (${formatDistance((spot as any).distance ?? 0)})`,
                 icon: {
                   url: '/parking-marker.png',
                   scaledSize: new google.maps.Size(32, 32)
@@ -228,11 +223,7 @@ export default function RoutePlanner() {
 
       const watchId = await LocationNotificationService.startLocationTracking(
         user!.uid,
-        {
-          length: defaultVehicle.length,
-          height: defaultVehicle.height,
-          weight: defaultVehicle.weight
-        }
+        handleLocationChange
       )
       locationWatchIdRef.current = watchId
       setIsTrackingEnabled(true)
@@ -291,8 +282,27 @@ export default function RoutePlanner() {
       handleLocationChange
     );
 
-    setLocationWatchId(watchId);
+    locationWatchIdRef.current = watchId;
   };
+
+  const calculateDistance = (
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number
+  ): number => {
+    const R = 6371e3; // metres
+    const φ1 = lat1 * Math.PI/180;
+    const φ2 = lat2 * Math.PI/180;
+    const Δφ = (lat2-lat1) * Math.PI/180;
+    const Δλ = (lon2-lon1) * Math.PI/180;
+    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+              Math.cos(φ1) * Math.cos(φ2) *
+              Math.sin(Δλ/2) * Math.sin(Δλ/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const d = R * c;
+    return d;
+  }
 
   if (loading) {
     return (

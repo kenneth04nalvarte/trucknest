@@ -43,6 +43,7 @@
     "@testing-library/jest-dom": "^6.4.2",
     "@testing-library/react": "^14.2.1",
     "@testing-library/user-event": "^14.5.2",
+    "@types/file-saver": "^2.0.7",
     "@types/jest": "^29.5.12",
     "@types/papaparse": "^5.3.14",
     "@types/react-big-calendar": "^1.8.8",
@@ -58,7 +59,9 @@
   "jest": {
     "preset": "ts-jest",
     "testEnvironment": "jsdom",
-    "setupFilesAfterEnv": ["<rootDir>/jest.setup.ts"],
+    "setupFilesAfterEnv": [
+      "<rootDir>/jest.setup.ts"
+    ],
     "moduleNameMapper": {
       "^@/(.*)$": "<rootDir>/src/$1",
       "^@/components/(.*)$": "<rootDir>/src/components/$1",

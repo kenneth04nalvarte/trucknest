@@ -144,18 +144,19 @@ class LocationNotificationService {
           const body = `${area.spots.length} parking spot${area.spots.length > 1 ? 's' : ''} available near ${area.address} (${distanceText} away)`
           
           // Send push notification
-          await NotificationService.sendPushNotification(
+          await NotificationService.createNotification({
             userId,
             title,
-            body,
-            {
+            message: body,
+            type: 'info',
+            metadata: {
               type: 'nearby_parking',
               latitude: area.location.latitude.toString(),
               longitude: area.location.longitude.toString(),
               spotCount: area.spots.length.toString(),
               distance: nearestSpot.distance.toString()
             }
-          )
+          })
 
           // Log notification
           await addDoc(collection(db, 'parkingNotifications'), {
@@ -242,4 +243,4 @@ class LocationNotificationService {
   }
 }
 
-export default LocationNotificationService.getInstance() 
+export { LocationNotificationService } 

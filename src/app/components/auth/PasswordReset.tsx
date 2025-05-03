@@ -16,11 +16,16 @@ export default function PasswordReset() {
   const [email, setEmail] = useState('')
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
   const [loading, setLoading] = useState(false)
-  const [rateLimit, setRateLimit] = useState<RateLimit>(() => {
-    const stored = localStorage.getItem('passwordResetRateLimit')
-    return stored ? JSON.parse(stored) : { attempts: 0, lastAttempt: 0 }
-  })
+  const [rateLimit, setRateLimit] = useState<RateLimit>({ attempts: 0, lastAttempt: 0 })
   const [countdown, setCountdown] = useState(0)
+
+  useEffect(() => {
+    // Only runs on client
+    const stored = localStorage.getItem('passwordResetRateLimit');
+    if (stored) {
+      setRateLimit(JSON.parse(stored));
+    }
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('passwordResetRateLimit', JSON.stringify(rateLimit))

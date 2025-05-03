@@ -107,9 +107,9 @@ export class MonitoringService {
     const navigationTiming = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;
     if (navigationTiming) {
       this.logPerformanceMetric('page_load', {
-        loadTime: navigationTiming.loadEventEnd - navigationTiming.navigationStart,
-        domContentLoadedTime: navigationTiming.domContentLoadedEventEnd - navigationTiming.navigationStart,
-        firstPaint: navigationTiming.domInteractive - navigationTiming.navigationStart,
+        loadTime: navigationTiming.loadEventEnd - navigationTiming.startTime,
+        domContentLoadedTime: navigationTiming.domContentLoadedEventEnd - navigationTiming.startTime,
+        firstPaint: navigationTiming.domInteractive - navigationTiming.startTime,
       });
     }
 
@@ -127,14 +127,14 @@ export class MonitoringService {
   private logPerformanceMetric(name: string, data: Record<string, unknown>): void {
     if (!this.performance) return;
 
-    const trace = this.performance.trace(name);
-    trace.start();
+    const perfTrace = trace(this.performance, name);
+    perfTrace.start();
 
     Object.entries(data).forEach(([key, value]) => {
-      trace.putAttribute(key, String(value));
+      perfTrace.putAttribute(key, String(value));
     });
 
-    trace.stop();
+    perfTrace.stop();
 
     this.checkAlertThresholds('performance', { name, ...data });
   }

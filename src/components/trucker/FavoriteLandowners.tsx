@@ -15,6 +15,8 @@ interface BaseLandowner {
   verificationStatus: 'verified' | 'pending' | 'unverified';
   createdAt: string;
   updatedAt: string;
+  rating: number;
+  totalReviews: number;
 }
 
 interface Landowner extends BaseLandowner {
@@ -118,6 +120,8 @@ export default function FavoriteLandowners() {
           verificationStatus: landownerData.verificationStatus,
           createdAt: landownerData.createdAt,
           updatedAt: landownerData.updatedAt,
+          rating: typeof landownerData.rating === 'number' ? landownerData.rating : 0,
+          totalReviews: typeof landownerData.totalReviews === 'number' ? landownerData.totalReviews : 0,
           properties: propertiesList
         });
       }

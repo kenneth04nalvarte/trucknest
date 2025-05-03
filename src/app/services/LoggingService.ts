@@ -63,7 +63,8 @@ export class LoggingService {
 
   private shouldLog(level: LogLevel): boolean {
     const levels: LogLevel[] = ['debug', 'info', 'warn', 'error'];
-    return levels.indexOf(level) >= levels.indexOf(this.config.logLevel);
+    const configLevel = this.config.logLevel ?? 'info';
+    return levels.indexOf(level) >= levels.indexOf(configLevel);
   }
 
   private logToConsole(entry: LogEntry): void {

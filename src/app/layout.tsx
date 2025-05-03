@@ -3,7 +3,7 @@ import { Inter } from 'next/font/google'
 import { AuthProvider } from './context/AuthContext'
 import { FirebaseApp } from 'firebase/app'
 import { MonitoringProvider } from '../context/MonitoringContext'
-import { getFirebaseApp } from '../config/firebase'
+import { app } from '../config/firebase'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -17,15 +17,13 @@ interface RootLayoutProps {
 }
 
 export default function RootLayout({ children }: RootLayoutProps) {
-  const app = getFirebaseApp();
-
   return (
     <html lang="en">
       <body className={inter.className}>
         <AuthProvider>
-          <MonitoringProvider app={app}>
+          {/* <MonitoringProvider app={app}> */}
             {children}
-          </MonitoringProvider>
+          {/* </MonitoringProvider> */}
         </AuthProvider>
       </body>
     </html>

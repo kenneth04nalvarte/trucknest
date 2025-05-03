@@ -1,10 +1,18 @@
+'use client'
+
 import React, { createContext, useContext, useEffect, useMemo } from 'react';
 import { FirebaseApp } from 'firebase/app';
 import { MonitoringService } from '../app/services/MonitoringService';
 import { getMonitoringConfig } from '../config/monitoring';
 
 interface MonitoringContextType {
-  monitoringService: MonitoringService;
+  monitoringService: {
+    trackPerformance: (metricName: string, value: number, data?: Record<string, unknown>) => void;
+    trackUserAction: (actionName: string, data?: Record<string, any>) => void;
+    setAlertThreshold: (threshold: any) => void;
+    trackError: (error: Error, context?: Record<string, unknown>) => void;
+    trackCustomEvent: (name: string, data?: Record<string, unknown>) => void;
+  };
 }
 
 const MonitoringContext = createContext<MonitoringContextType | null>(null);
@@ -27,7 +35,15 @@ export const MonitoringProvider: React.FC<MonitoringProviderProps> = ({ children
       service.setAlertThreshold(threshold);
     });
 
-    return service;
+    // Return a plain object with the necessary methods and data.
+    return {
+      trackPerformance: (metricName: string, value: number, data?: Record<string, unknown>) => 
+        service.trackPerformance(metricName, value, data),
+      trackUserAction: (actionName: string, data?: Record<string, any>) => service.trackUserAction(actionName, data),
+      setAlertThreshold: (threshold: any) => service.setAlertThreshold(threshold),
+      trackError: (error: Error, context?: Record<string, unknown>) => service.trackError(error, context),
+      trackCustomEvent: (name: string, data?: Record<string, unknown>) => service.trackCustomEvent(name, data),
+    };
   }, [app]);
 
   useEffect(() => {

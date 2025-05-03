@@ -140,7 +140,7 @@ interface PropertyFormData extends Omit<BaseProperty, 'id' | 'createdAt' | 'upda
     height: number;
     weight: number;
   };
-  priceRules: PriceRule[];
+  priceRule: PriceRule;
 }
 
 interface PropertyAnalytics {
@@ -187,7 +187,16 @@ export default function PropertyManager({ onError, onSuccess, className }: Prope
     totalSpaces: 0,
     availableSpaces: 0,
     allowedVehicleTypes: [],
-    priceRules: [],
+    priceRule: {
+      type: '',
+      maxLength: 0,
+      maxHeight: 0,
+      maxWeight: 0,
+      hourly: 0,
+      daily: 0,
+      weekly: 0,
+      monthly: 0
+    },
     amenities: [],
     dimensions: {
       length: 0,
@@ -462,7 +471,8 @@ export default function PropertyManager({ onError, onSuccess, className }: Prope
       const bookings = snapshot.docs.map(doc => ({
         ...doc.data(),
         startTime: doc.data().startTime.toDate(),
-        endTime: doc.data().endTime.toDate()
+        endTime: doc.data().endTime.toDate(),
+        totalPrice: typeof doc.data().totalPrice === 'number' ? doc.data().totalPrice : 0
       }))
 
       // Process data for charts
@@ -606,11 +616,11 @@ export default function PropertyManager({ onError, onSuccess, className }: Prope
     if (!user?.uid) return;
 
     try {
-      const dimensionsValidation = validateDimensions(
-        newProperty.dimensions?.length || 0,
-        newProperty.dimensions?.height || 0,
-        newProperty.dimensions?.weight || 0
-      );
+      const dimensionsValidation = validateDimensions({
+        length: newProperty.dimensions?.length || 0,
+        height: newProperty.dimensions?.height || 0,
+        weight: newProperty.dimensions?.weight || 0
+      });
 
       if (!dimensionsValidation.isValid) {
         setError(dimensionsValidation.errors.join(', '));
@@ -619,6 +629,7 @@ export default function PropertyManager({ onError, onSuccess, className }: Prope
 
       const propertyData: Omit<Property, 'id'> = {
         ...newProperty as Omit<Property, 'id'>,
+        priceRules: newProperty.priceRule ? [newProperty.priceRule] : [],
         ownerId: user.uid,
         createdAt: new Date(),
         updatedAt: new Date()
@@ -639,7 +650,16 @@ export default function PropertyManager({ onError, onSuccess, className }: Prope
         totalSpaces: 0,
         availableSpaces: 0,
         allowedVehicleTypes: [],
-        priceRules: [],
+        priceRule: {
+          type: '',
+          maxLength: 0,
+          maxHeight: 0,
+          maxWeight: 0,
+          hourly: 0,
+          daily: 0,
+          weekly: 0,
+          monthly: 0
+        },
         amenities: [],
         dimensions: {
           length: 0,
@@ -661,21 +681,30 @@ export default function PropertyManager({ onError, onSuccess, className }: Prope
   ) => {
     const { name, value } = e.target;
     
-    if (name.startsWith('priceRules.')) {
-      const [_, field] = name.split('.');
+    if (name.startsWith('priceRule.')) {
+      const [, field] = name.split('.');
       setNewProperty(prev => ({
         ...prev,
-        priceRules: {
-          ...prev.priceRules,
-          [field]: parseFloat(value) || 0
+        priceRule: {
+          type: prev.priceRule?.type ?? '',
+          maxLength: prev.priceRule?.maxLength ?? 0,
+          maxHeight: prev.priceRule?.maxHeight ?? 0,
+          maxWeight: prev.priceRule?.maxWeight ?? 0,
+          hourly: prev.priceRule?.hourly ?? 0,
+          daily: prev.priceRule?.daily ?? 0,
+          weekly: prev.priceRule?.weekly ?? 0,
+          monthly: prev.priceRule?.monthly ?? 0,
+          [field]: field === 'type' ? value : parseFloat(value) || 0
         }
       }));
     } else if (name.startsWith('dimensions.')) {
-      const [_, field] = name.split('.');
+      const [, field] = name.split('.');
       setNewProperty(prev => ({
         ...prev,
         dimensions: {
-          ...prev.dimensions,
+          length: prev.dimensions?.length ?? 0,
+          height: prev.dimensions?.height ?? 0,
+          weight: prev.dimensions?.weight ?? 0,
           [field]: parseFloat(value) || 0
         }
       }));
@@ -1246,14 +1275,14 @@ export default function PropertyManager({ onError, onSuccess, className }: Prope
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label htmlFor="priceRules.hourly" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="priceRule.hourly" className="block text-sm font-medium text-gray-700">
               Hourly Rate ($)
             </label>
             <input
               type="number"
-              id="priceRules.hourly"
-              name="priceRules.hourly"
-              value={newProperty.priceRules?.hourly || 0}
+              id="priceRule.hourly"
+              name="priceRule.hourly"
+              value={newProperty.priceRule?.hourly || 0}
               onChange={handleInputChange}
               required
               min="0"
@@ -1263,14 +1292,14 @@ export default function PropertyManager({ onError, onSuccess, className }: Prope
           </div>
 
           <div>
-            <label htmlFor="priceRules.daily" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="priceRule.daily" className="block text-sm font-medium text-gray-700">
               Daily Rate ($)
             </label>
             <input
               type="number"
-              id="priceRules.daily"
-              name="priceRules.daily"
-              value={newProperty.priceRules?.daily || 0}
+              id="priceRule.daily"
+              name="priceRule.daily"
+              value={newProperty.priceRule?.daily || 0}
               onChange={handleInputChange}
               required
               min="0"
@@ -1280,14 +1309,14 @@ export default function PropertyManager({ onError, onSuccess, className }: Prope
           </div>
 
           <div>
-            <label htmlFor="priceRules.weekly" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="priceRule.weekly" className="block text-sm font-medium text-gray-700">
               Weekly Rate ($)
             </label>
             <input
               type="number"
-              id="priceRules.weekly"
-              name="priceRules.weekly"
-              value={newProperty.priceRules?.weekly || 0}
+              id="priceRule.weekly"
+              name="priceRule.weekly"
+              value={newProperty.priceRule?.weekly || 0}
               onChange={handleInputChange}
               required
               min="0"
@@ -1297,14 +1326,14 @@ export default function PropertyManager({ onError, onSuccess, className }: Prope
           </div>
 
           <div>
-            <label htmlFor="priceRules.monthly" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="priceRule.monthly" className="block text-sm font-medium text-gray-700">
               Monthly Rate ($)
             </label>
             <input
               type="number"
-              id="priceRules.monthly"
-              name="priceRules.monthly"
-              value={newProperty.priceRules?.monthly || 0}
+              id="priceRule.monthly"
+              name="priceRule.monthly"
+              value={newProperty.priceRule?.monthly || 0}
               onChange={handleInputChange}
               required
               min="0"
