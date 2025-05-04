@@ -1,6 +1,6 @@
 import { db } from '@/config/firebase'
-import { 
-  collection, 
+import {
+  collection,
   addDoc, 
   FirestoreError, 
   writeBatch, 
@@ -159,4 +159,4 @@ export class NotificationService {
       throw new Error(`Failed to create notifications for users: ${firestoreError.message}`);
     }
   }
-} 
+}
