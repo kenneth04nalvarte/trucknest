@@ -15,6 +15,7 @@ import {
   getDocs,
   Timestamp
 } from 'firebase/firestore'
+import { View } from 'react-big-calendar'
 
 const locales = {
   'en-US': require('date-fns/locale/en-US')
@@ -83,7 +84,7 @@ export default function ReservationCalendar({
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [view, setView] = useState<'month' | 'week' | 'day'>('week');
+  const [view, setView] = useState<View>('week');
   const [date, setDate] = useState(new Date());
   const [availabilityMap, setAvailabilityMap] = useState<AvailabilityMap>({});
 
@@ -279,7 +280,7 @@ export default function ReservationCalendar({
           startAccessor="start"
           endAccessor="end"
           view={view}
-          onView={(newView: 'month' | 'week' | 'day') => setView(newView)}
+          onView={(newView: View) => setView(newView)}
           date={date}
           onNavigate={setDate}
           eventPropGetter={eventStyleGetter}

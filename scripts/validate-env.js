@@ -9,6 +9,12 @@ const requiredEnvVars = [
 ];
 
 function validateEnv() {
+  // Skip validation in production
+  if (process.env.NODE_ENV === 'production') {
+    console.log('Skipping environment validation in production');
+    return;
+  }
+
   const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
   
   if (missingVars.length > 0) {

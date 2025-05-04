@@ -1,15 +1,17 @@
-import { initializeApp, FirebaseApp, FirebaseOptions } from 'firebase/app';
+import { initializeApp, getApps } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
 import { getAuth, Auth } from 'firebase/auth';
 import { getFirestore, Firestore } from 'firebase/firestore';
 import { getStorage, FirebaseStorage } from 'firebase/storage';
 
-interface FirebaseConfig extends FirebaseOptions {
+interface FirebaseConfig {
   apiKey: string;
   authDomain: string;
   projectId: string;
   storageBucket: string;
   messagingSenderId: string;
   appId: string;
+  measurementId?: string;
 }
 
 const requiredEnvVars = [
@@ -35,10 +37,10 @@ const validateEnvVars = (): void => {
   }
 };
 
-const getFirebaseConfig = (): FirebaseConfig & { measurementId?: string } => {
+const getFirebaseConfig = (): FirebaseConfig => {
   validateEnvVars();
 
-  const config: FirebaseConfig & { measurementId?: string } = {
+  const config: FirebaseConfig = {
     apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY!,
     authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN!,
     projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID!,
@@ -52,16 +54,19 @@ const getFirebaseConfig = (): FirebaseConfig & { measurementId?: string } => {
   return config;
 };
 
-let app: FirebaseApp;
+const app = getApps().length === 0 ? initializeApp(getFirebaseConfig()) : getApps()[0];
 let auth: Auth;
 let db: Firestore;
 let storage: FirebaseStorage;
+let analytics;
 
 try {
-  app = initializeApp(getFirebaseConfig());
   auth = getAuth(app);
   db = getFirestore(app);
   storage = getStorage(app);
+  if (typeof window !== "undefined") {
+    analytics = getAnalytics(app);
+  }
 } catch (error) {
   console.error('Error initializing Firebase:', error);
   throw new Error('Failed to initialize Firebase services');
@@ -77,4 +82,4 @@ console.log('FIREBASE ENV:', {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 });
 
-export { app, auth, db, storage }; 
+export { app, auth, db, storage, analytics }; 
