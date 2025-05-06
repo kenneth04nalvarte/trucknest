@@ -26,6 +26,8 @@ export default function AddVehicle() {
     height: '',
     weight: '',
   })
+  const [vehiclePhoto, setVehiclePhoto] = useState<string | null>(null)
+  const [photoFile, setPhotoFile] = useState<File | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -39,6 +41,16 @@ export default function AddVehicle() {
       ...prev,
       [name]: value
     }))
+  }
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setPhotoFile(file)
+      const reader = new FileReader()
+      reader.onload = (ev) => setVehiclePhoto(ev.target?.result as string)
+      reader.readAsDataURL(file)
+    }
   }
 
   return (
@@ -163,6 +175,22 @@ export default function AddVehicle() {
                   placeholder="e.g., 40"
                 />
               </div>
+            </div>
+
+            {/* Vehicle Photo Upload */}
+            <div>
+              <label className="block text-darkgray mb-2">Vehicle Photo (optional)</label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handlePhotoChange}
+                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-orange file:text-white hover:file:bg-orange-dark"
+              />
+              {vehiclePhoto && (
+                <div className="mt-2">
+                  <img src={vehiclePhoto} alt="Vehicle Preview" className="h-32 rounded shadow" />
+                </div>
+              )}
             </div>
 
             <div className="flex justify-end space-x-4">

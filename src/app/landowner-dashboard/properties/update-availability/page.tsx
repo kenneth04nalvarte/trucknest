@@ -13,19 +13,28 @@ const sidebarLinks = [
   { href: '/landowner-dashboard/profile', label: 'Profile' },
 ]
 
+interface FormData {
+  propertyId: string
+  startDate: string
+  endDate: string
+  availabilityType: 'available' | 'unavailable'
+  notes: string
+}
+
 export default function UpdateAvailability() {
   const { user } = useAuth()
   const router = useRouter()
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     propertyId: '',
     startDate: '',
     endDate: '',
-    availableSpots: '',
-    isAvailable: true,
-    notes: '',
+    availabilityType: 'available',
+    notes: ''
   })
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
     const { name, value } = e.target
     setFormData(prev => ({
       ...prev,
@@ -35,7 +44,7 @@ export default function UpdateAvailability() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // TODO: Implement availability update logic
+    // TODO: Implement update availability logic
     router.push('/landowner-dashboard/properties')
   }
 
@@ -46,119 +55,101 @@ export default function UpdateAvailability() {
         sidebarLinks={sidebarLinks}
       >
         <div className="bg-white shadow rounded-lg p-6">
+          <h1 className="text-2xl font-bold text-navy mb-6">Update Property Availability</h1>
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Property Selection */}
             <div>
-              <h2 className="text-xl font-bold text-navy mb-4">Select Property</h2>
+              <label htmlFor="propertyId" className="block text-sm font-medium text-darkgray mb-2">
+                Select Property
+              </label>
+              <select
+                id="propertyId"
+                name="propertyId"
+                value={formData.propertyId}
+                onChange={handleChange}
+                required
+                className="w-full px-3 py-2 border border-lightgray rounded-md focus:outline-none focus:ring-2 focus:ring-orange"
+              >
+                <option value="">Select a property</option>
+                <option value="property1">Property 1</option>
+                <option value="property2">Property 2</option>
+              </select>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-darkgray mb-1">
-                  Property
+                <label htmlFor="startDate" className="block text-sm font-medium text-darkgray mb-2">
+                  Start Date
                 </label>
-                <select
-                  name="propertyId"
-                  value={formData.propertyId}
+                <input
+                  type="date"
+                  id="startDate"
+                  name="startDate"
+                  value={formData.startDate}
                   onChange={handleChange}
                   required
                   className="w-full px-3 py-2 border border-lightgray rounded-md focus:outline-none focus:ring-2 focus:ring-orange"
-                >
-                  <option value="">Select a property</option>
-                  <option value="1">123 Main St, City, State</option>
-                  <option value="2">456 Park Ave, City, State</option>
-                </select>
+                />
+              </div>
+
+              <div>
+                <label htmlFor="endDate" className="block text-sm font-medium text-darkgray mb-2">
+                  End Date
+                </label>
+                <input
+                  type="date"
+                  id="endDate"
+                  name="endDate"
+                  value={formData.endDate}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-3 py-2 border border-lightgray rounded-md focus:outline-none focus:ring-2 focus:ring-orange"
+                />
               </div>
             </div>
 
-            {/* Date Range */}
             <div>
-              <h2 className="text-xl font-bold text-navy mb-4">Date Range</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-darkgray mb-1">
-                    Start Date
-                  </label>
-                  <input
-                    type="date"
-                    name="startDate"
-                    value={formData.startDate}
-                    onChange={handleChange}
-                    required
-                    className="w-full px-3 py-2 border border-lightgray rounded-md focus:outline-none focus:ring-2 focus:ring-orange"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-darkgray mb-1">
-                    End Date
-                  </label>
-                  <input
-                    type="date"
-                    name="endDate"
-                    value={formData.endDate}
-                    onChange={handleChange}
-                    required
-                    className="w-full px-3 py-2 border border-lightgray rounded-md focus:outline-none focus:ring-2 focus:ring-orange"
-                  />
-                </div>
-              </div>
+              <label htmlFor="availabilityType" className="block text-sm font-medium text-darkgray mb-2">
+                Availability Status
+              </label>
+              <select
+                id="availabilityType"
+                name="availabilityType"
+                value={formData.availabilityType}
+                onChange={handleChange}
+                required
+                className="w-full px-3 py-2 border border-lightgray rounded-md focus:outline-none focus:ring-2 focus:ring-orange"
+              >
+                <option value="available">Available</option>
+                <option value="unavailable">Unavailable</option>
+              </select>
             </div>
 
-            {/* Availability Settings */}
             <div>
-              <h2 className="text-xl font-bold text-navy mb-4">Availability Settings</h2>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-darkgray mb-1">
-                    Available Spots
-                  </label>
-                  <input
-                    type="number"
-                    name="availableSpots"
-                    value={formData.availableSpots}
-                    onChange={handleChange}
-                    required
-                    min="0"
-                    className="w-full px-3 py-2 border border-lightgray rounded-md focus:outline-none focus:ring-2 focus:ring-orange"
-                  />
-                </div>
-                <div>
-                  <label className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      name="isAvailable"
-                      checked={formData.isAvailable}
-                      onChange={(e) => setFormData(prev => ({ ...prev, isAvailable: e.target.checked }))}
-                      className="rounded text-orange focus:ring-orange"
-                    />
-                    <span className="text-darkgray">Property is available for booking</span>
-                  </label>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-darkgray mb-1">
-                    Notes
-                  </label>
-                  <textarea
-                    name="notes"
-                    value={formData.notes}
-                    onChange={handleChange}
-                    rows={4}
-                    className="w-full px-3 py-2 border border-lightgray rounded-md focus:outline-none focus:ring-2 focus:ring-orange"
-                    placeholder="Add any special instructions or notes about availability..."
-                  />
-                </div>
-              </div>
+              <label htmlFor="notes" className="block text-sm font-medium text-darkgray mb-2">
+                Notes
+              </label>
+              <textarea
+                id="notes"
+                name="notes"
+                value={formData.notes}
+                onChange={handleChange}
+                rows={4}
+                className="w-full px-3 py-2 border border-lightgray rounded-md focus:outline-none focus:ring-2 focus:ring-orange"
+                placeholder="Add any additional notes or instructions..."
+              />
             </div>
 
-            {/* Submit Button */}
-            <div className="flex justify-end space-x-4">
+            <div className="flex justify-end gap-4">
               <button
                 type="button"
                 onClick={() => router.back()}
-                className="px-6 py-2 border border-lightgray rounded font-semibold text-darkgray hover:bg-lightgray"
+                className="px-4 py-2 text-darkgray hover:text-navy transition-colors"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="bg-orange hover:bg-orange-dark text-white px-6 py-2 rounded font-semibold"
+                className="px-6 py-2 bg-orange hover:bg-orange-dark text-white rounded-md transition-colors"
               >
                 Update Availability
               </button>

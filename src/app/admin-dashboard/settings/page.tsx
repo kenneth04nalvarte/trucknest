@@ -1,8 +1,10 @@
+import AdminDashboardLayout from '../layout'
+
 export default function SettingsPage() {
   return (
-    <div className="p-8">
-      <h1 className="text-2xl font-bold text-navy mb-4">Settings</h1>
-      <p className="text-darkgray">Configure admin and platform settings here.</p>
-    </div>
+    <AdminDashboardLayout>
+      <h1 className="text-3xl font-bold mb-6 text-navy">Settings</h1>
+      <p>Manage admin dashboard settings here.</p>
+    </AdminDashboardLayout>
   )
 } 

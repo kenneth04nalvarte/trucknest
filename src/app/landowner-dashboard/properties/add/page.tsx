@@ -40,6 +40,16 @@ export default function AddProperty() {
     images: [] as File[],
   })
 
+  const vehicleTypeOptions = [
+    { label: 'Bobtail Truck', value: 'bobtail_truck' },
+    { label: 'Truck and Trailer', value: 'truck_and_trailer' },
+    { label: 'RV', value: 'rv' },
+    { label: 'Boat', value: 'boat' },
+    { label: 'Container', value: 'container' },
+    { label: 'Heavy Equipment', value: 'heavy_equipment' },
+  ];
+  const [allowedVehicleTypes, setAllowedVehicleTypes] = useState<string[]>([]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
     setFormData(prev => ({
@@ -67,6 +77,13 @@ export default function AddProperty() {
       }))
     }
   }
+
+  const handleVehicleTypeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { value, checked } = e.target;
+    setAllowedVehicleTypes(prev =>
+      checked ? [...prev, value] : prev.filter(v => v !== value)
+    );
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -160,6 +177,25 @@ export default function AddProperty() {
                     rows={4}
                     className="w-full px-3 py-2 border border-lightgray rounded-md focus:outline-none focus:ring-2 focus:ring-orange"
                   />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-darkgray mb-1">
+                    Allowed Vehicle Types
+                  </label>
+                  <div className="flex flex-wrap gap-4">
+                    {vehicleTypeOptions.map(type => (
+                      <label key={type.value} className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          value={type.value}
+                          checked={allowedVehicleTypes.includes(type.value)}
+                          onChange={handleVehicleTypeChange}
+                          className="rounded text-orange focus:ring-orange"
+                        />
+                        <span className="text-darkgray">{type.label}</span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>

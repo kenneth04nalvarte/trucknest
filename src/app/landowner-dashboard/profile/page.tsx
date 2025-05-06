@@ -4,6 +4,7 @@ import ProtectedRoute from '../../components/ProtectedRoute'
 import DashboardLayout from '../../components/DashboardLayout'
 import { useAuth } from '../../context/AuthContext'
 import { useState, ChangeEvent } from 'react'
+import AddressAutocomplete from '@/components/AddressAutocomplete'
 
 const sidebarLinks = [
   { href: '/landowner-dashboard/properties', label: 'My Properties' },
@@ -169,14 +170,23 @@ export default function Profile() {
                   <label className="block text-sm font-medium text-darkgray mb-1">
                     Address
                   </label>
-                  <input
-                    type="text"
-                    name="address"
-                    value={formData.address}
-                    onChange={handleChange}
-                    disabled={!isEditing}
-                    className="w-full px-3 py-2 border border-lightgray rounded-md focus:outline-none focus:ring-2 focus:ring-orange"
-                  />
+                  {isEditing ? (
+                    <AddressAutocomplete
+                      value={formData.address}
+                      onAddressSelect={address => handleChange({ target: { name: 'address', value: address } } as any)}
+                      placeholder="Enter address"
+                      className="w-full px-3 py-2 border border-lightgray rounded-md focus:outline-none focus:ring-2 focus:ring-orange"
+                    />
+                  ) : (
+                    <input
+                      type="text"
+                      name="address"
+                      value={formData.address}
+                      onChange={handleChange}
+                      disabled={!isEditing}
+                      className="w-full px-3 py-2 border border-lightgray rounded-md focus:outline-none focus:ring-2 focus:ring-orange"
+                    />
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-darkgray mb-1">

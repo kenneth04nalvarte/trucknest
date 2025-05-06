@@ -21,7 +21,8 @@ export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="en">
       <head>
-        <link rel="icon" href="/logo.png" type="image/png" />
+        <title>TruckNest Parking App</title>
+        <link rel="icon" href="/logo.png.png" type="image/png" />
       </head>
       <body className={inter.className}>
         <AuthProvider>

@@ -1,72 +1,72 @@
-import { useState, useEffect } from 'react';
+'use client'
+
+import { useEffect, useRef } from 'react'
 
 interface AddressAutocompleteProps {
-  value: string;
-  onChange: (address: string, lat: number, lng: number) => void;
+  value: string
+  onAddressSelect: (address: string) => void
+  placeholder?: string
+  className?: string
 }
 
-export default function AddressAutocomplete({ value, onChange }: AddressAutocompleteProps) {
-  const [suggestions, setSuggestions] = useState<google.maps.places.AutocompletePrediction[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
+declare global {
+  interface Window {
+    google: any
+  }
+}
+
+export default function AddressAutocomplete({
+  value,
+  onAddressSelect,
+  placeholder = 'Enter address',
+  className = ''
+}: AddressAutocompleteProps) {
+  const inputRef = useRef<HTMLInputElement>(null)
+  const autocompleteRef = useRef<any>(null)
 
   useEffect(() => {
-    if (window.google && window.google.maps) {
-      const autocompleteService = new google.maps.places.AutocompleteService();
-      
-      if (value) {
-        autocompleteService.getPlacePredictions(
-          { input: value },
-          (predictions) => {
-            setSuggestions(predictions || []);
-            setShowSuggestions(true);
-          }
-        );
-      } else {
-        setSuggestions([]);
-        setShowSuggestions(false);
+    if (!window.google) {
+      const script = document.createElement('script')
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places`
+      script.async = true
+      script.defer = true
+      script.onload = initializeAutocomplete
+      document.head.appendChild(script)
+    } else {
+      initializeAutocomplete()
+    }
+
+    return () => {
+      if (autocompleteRef.current) {
+        window.google.maps.event.clearInstanceListeners(autocompleteRef.current)
       }
     }
-  }, [value]);
+  }, [])
 
-  const handleSelect = async (placeId: string) => {
-    if (window.google && window.google.maps) {
-      const geocoder = new google.maps.Geocoder();
-      geocoder.geocode({ placeId }, (results, status) => {
-        if (status === 'OK' && results?.[0]) {
-          const { formatted_address, geometry } = results[0];
-          onChange(
-            formatted_address,
-            geometry.location.lat(),
-            geometry.location.lng()
-          );
-          setShowSuggestions(false);
-        }
-      });
-    }
-  };
+  const initializeAutocomplete = () => {
+    if (!inputRef.current) return
+
+    autocompleteRef.current = new window.google.maps.places.Autocomplete(inputRef.current, {
+      types: ['address'],
+      componentRestrictions: { country: 'us' }
+    })
+
+    autocompleteRef.current.addListener('place_changed', () => {
+      const place = autocompleteRef.current.getPlace()
+      if (place.formatted_address) {
+        onAddressSelect(place.formatted_address)
+      }
+    })
+  }
 
   return (
-    <div className="relative">
-      <input
-        type="text"
-        value={value}
-        onChange={(e) => onChange(e.target.value, 0, 0)}
-        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-        placeholder="Enter address"
-      />
-      {showSuggestions && suggestions.length > 0 && (
-        <ul className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
-          {suggestions.map((suggestion) => (
-            <li
-              key={suggestion.place_id}
-              className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
-              onClick={() => handleSelect(suggestion.place_id)}
-            >
-              {suggestion.description}
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
+    <input
+      ref={inputRef}
+      type="text"
+      value={value}
+      onChange={(e) => onAddressSelect(e.target.value)}
+      placeholder={placeholder}
+      className={className}
+    />
+  )
 } 

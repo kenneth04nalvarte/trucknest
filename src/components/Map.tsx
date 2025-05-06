@@ -62,7 +62,7 @@ export default function Map({ center = { lat: 39.8283, lng: -98.5795 }, zoom = 4
       }
 
       const script = document.createElement('script')
-      script.src = `https://maps.googleapis.com/maps/api/js?key=AIzaSyCSY-0WgJnF4gtL23hbldUeiw_8P6NX08w`
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`
       script.async = true
       script.defer = true
 

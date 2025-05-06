@@ -6,6 +6,7 @@ import { collection, query, where, getDocs, getDoc, doc, FirestoreError } from '
 import { useAuth } from '@/context/AuthContext';
 import Map from '@/components/Map';
 import { LocationNotificationService } from '@/services/location-notification';
+import AddressAutocomplete from '@/components/AddressAutocomplete';
 
 interface Vehicle {
   id: string;
@@ -193,12 +194,11 @@ export default function RoutePlanner() {
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Start Location
             </label>
-            <input
-              type="text"
+            <AddressAutocomplete
               value={startLocation}
-              onChange={(e) => setStartLocation(e.target.value)}
-              className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              onAddressSelect={setStartLocation}
               placeholder="Enter start location"
+              className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
             />
           </div>
 
@@ -206,12 +206,11 @@ export default function RoutePlanner() {
             <label className="block text-sm font-medium text-gray-700 mb-1">
               End Location
             </label>
-            <input
-              type="text"
+            <AddressAutocomplete
               value={endLocation}
-              onChange={(e) => setEndLocation(e.target.value)}
-              className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              onAddressSelect={setEndLocation}
               placeholder="Enter end location"
+              className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
             />
           </div>
 

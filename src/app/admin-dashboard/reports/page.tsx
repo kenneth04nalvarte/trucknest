@@ -1,8 +1,10 @@
+import AdminDashboardLayout from '../layout'
+
 export default function ReportsPage() {
   return (
-    <div className="p-8">
-      <h1 className="text-2xl font-bold text-navy mb-4">Reports</h1>
-      <p className="text-darkgray">View and generate platform reports here.</p>
-    </div>
+    <AdminDashboardLayout>
+      <h1 className="text-3xl font-bold mb-6 text-navy">Reports</h1>
+      <p>View and generate reports here.</p>
+    </AdminDashboardLayout>
   )
 } 

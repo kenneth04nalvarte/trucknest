@@ -5,12 +5,15 @@ import { useAuth } from './context/AuthContext'
 import { useState } from 'react'
 import AddressAutocomplete from '@/components/AddressAutocomplete'
 import Map from '@/components/Map'
+import { useRouter } from 'next/navigation'
 
 const vehicleTypes = [
-  { label: 'Semi Truck', value: 'semi' },
-  { label: 'Box Truck', value: 'box_truck' },
-  { label: 'Van', value: 'van' },
-  { label: 'Other', value: 'other' },
+  { label: 'Bobtail Truck', value: 'bobtail_truck' },
+  { label: 'Truck and Trailer', value: 'truck_and_trailer' },
+  { label: 'RV', value: 'rv' },
+  { label: 'Boat', value: 'boat' },
+  { label: 'Container', value: 'container' },
+  { label: 'Heavy Equipment', value: 'heavy_equipment' },
 ]
 
 export default function HomePage() {
@@ -19,6 +22,7 @@ export default function HomePage() {
   const [vehicleType, setVehicleType] = useState(vehicleTypes[0].value)
   const [date, setDate] = useState('')
   const [duration, setDuration] = useState('1')
+  const router = useRouter()
 
   if (loading) {
     return (
@@ -28,17 +32,37 @@ export default function HomePage() {
     )
   }
 
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault()
+    router.push(`/booking/search-results?address=${encodeURIComponent(address)}&vehicleType=${vehicleType}&date=${date}&duration=${duration}`)
+  }
+
+  const handleFindParkingNearMe = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          router.push(`/booking/search-results?lat=${latitude}&lng=${longitude}&radius=50`);
+        },
+        (error) => {
+          alert('Unable to access your location. Please enable location services and try again.');
+        }
+      );
+    } else {
+      alert('Geolocation is not supported by your browser.');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-lightgray">
       {/* Navbar Example */}
       <nav className="w-full bg-navy text-white shadow-md py-4 px-6 flex justify-between items-center fixed top-0 left-0 z-20">
-        <Link href="/" className="text-2xl font-bold tracking-tight">TruckNest</Link>
+        <Link href="/" className="text-2xl font-bold tracking-tight">
+          <span>Truck</span><span style={{ color: '#FFA500' }}>Nest</span>
+        </Link>
         <div className="flex gap-4 items-center">
-          <Link href="/auth?role=trucker" className="bg-white text-navy border border-navy px-4 py-2 rounded hover:bg-navy hover:text-white transition">Trucker Sign In</Link>
-          <Link href="/auth?role=landmember" className="bg-white text-navy border border-navy px-4 py-2 rounded hover:bg-navy hover:text-white transition">Land Member Sign In</Link>
+          <Link href="/auth" className="bg-white text-navy border border-navy px-4 py-2 rounded hover:bg-navy hover:text-white transition">Member Sign In</Link>
           <Link href="/auth?mode=signup" className="bg-orange hover:bg-orange-dark text-white px-4 py-2 rounded font-semibold shadow transition">Sign Up</Link>
-          <Link href="#contact" className="px-4 py-2 text-white hover:text-orange transition">Contact Us</Link>
-          <Link href="#how-it-works" className="px-4 py-2 text-white hover:text-orange transition">How It Works</Link>
         </div>
       </nav>
 
@@ -59,10 +83,7 @@ export default function HomePage() {
           {/* Search Bar Example */}
           <form
             className="bg-white bg-opacity-95 rounded-xl shadow-lg p-4 flex flex-col md:flex-row gap-3 items-center max-w-3xl mx-auto"
-            onSubmit={e => {
-              e.preventDefault()
-              // Implement search logic or redirect
-            }}
+            onSubmit={handleSearch}
           >
             <div className="flex-1 w-full min-w-[200px]">
               <AddressAutocomplete
@@ -114,7 +135,14 @@ export default function HomePage() {
 
       {/* Statistics Section */}
       <section className="container mx-auto px-4 py-16 bg-navy text-white">
-        <h2 className="text-3xl font-bold text-center mb-12">Trucking Industry Statistics</h2>
+        <div className="flex flex-col items-center mb-8">
+          <button
+            onClick={handleFindParkingNearMe}
+            className="bg-orange hover:bg-orange-dark text-white px-6 py-2 rounded-md font-semibold shadow transition-colors mb-4"
+          >
+            Find Parking Near Me
+          </button>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           <div className="text-center">
             <div className="text-4xl font-bold text-orange mb-2">3.6M+</div>
