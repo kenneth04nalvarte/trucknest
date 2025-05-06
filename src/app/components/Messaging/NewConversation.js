@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { createNewConversation } from '@/app/utils/messaging';
 import { collection, query, where, getDocs, limit } from 'firebase/firestore';
-import { db } from '@/config/firebase';
+import { db } from '@/app/config/firebase';
 import styles from '../../styles/Messaging.module.css';
 
 export default function NewConversation({ onConversationCreated, onCancel }) {

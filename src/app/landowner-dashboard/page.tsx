@@ -22,49 +22,48 @@ export default function LandownerDashboard() {
         sidebarLinks={sidebarLinks}
       >
         <div className="bg-white shadow rounded-lg p-6">
-          <h2 className="text-xl font-semibold mb-4">Welcome back, {user?.email}</h2>
+          <h2 className="text-2xl font-bold mb-6 text-navy">Welcome, {user?.email}!</h2>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {/* Quick Actions */}
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <h3 className="font-medium text-blue-800 mb-2">Quick Actions</h3>
+            <div className="bg-orange/10 p-4 rounded-lg">
+              <h3 className="font-medium text-orange mb-2">Quick Actions</h3>
               <ul className="space-y-2">
-                <li>
-                  <button className="text-blue-600 hover:text-blue-800">
-                    List New Property
-                  </button>
-                </li>
-                <li>
-                  <button className="text-blue-600 hover:text-blue-800">
-                    View Pending Requests
-                  </button>
-                </li>
-                <li>
-                  <button className="text-blue-600 hover:text-blue-800">
-                    Update Availability
-                  </button>
-                </li>
+                <li><button className="text-navy hover:text-orange font-semibold">List New Property</button></li>
+                <li><button className="text-navy hover:text-orange font-semibold">View Pending Requests</button></li>
+                <li><button className="text-navy hover:text-orange font-semibold">Update Availability</button></li>
               </ul>
             </div>
 
             {/* Property Stats */}
             <div className="bg-green-50 p-4 rounded-lg">
-              <h3 className="font-medium text-green-800 mb-2">Property Stats</h3>
+              <h3 className="font-medium text-green mb-2">Property Stats</h3>
               <div className="space-y-2">
-                <p className="text-green-600">Active Properties: 0</p>
-                <p className="text-green-600">Total Bookings: 0</p>
-                <p className="text-green-600">Available Spots: 0</p>
+                <p className="text-darkgray">Active Properties: 0</p>
+                <p className="text-darkgray">Total Bookings: 0</p>
+                <p className="text-darkgray">Available Spots: 0</p>
               </div>
             </div>
 
             {/* Recent Earnings */}
-            <div className="bg-purple-50 p-4 rounded-lg">
-              <h3 className="font-medium text-purple-800 mb-2">Recent Earnings</h3>
+            <div className="bg-lightgray p-4 rounded-lg">
+              <h3 className="font-medium text-darkgray mb-2">Recent Earnings</h3>
               <div className="space-y-2">
-                <p className="text-purple-600">This Month: $0</p>
-                <p className="text-purple-600">Last Month: $0</p>
-                <p className="text-purple-600">Total Earnings: $0</p>
+                <p className="text-darkgray">This Month: $0</p>
+                <p className="text-darkgray">Last Month: $0</p>
+                <p className="text-darkgray">Total Earnings: $0</p>
               </div>
+            </div>
+
+            {/* Tips Card */}
+            <div className="bg-navy text-white p-4 rounded-lg col-span-1 md:col-span-2 lg:col-span-3">
+              <h3 className="font-medium text-orange mb-2">Tips to Attract More Bookings</h3>
+              <ul className="list-disc pl-5">
+                <li>Add high-quality photos of your property</li>
+                <li>Keep your availability up to date</li>
+                <li>Respond quickly to booking requests</li>
+                <li>Offer competitive pricing</li>
+              </ul>
             </div>
           </div>
         </div>

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { collection, getDocs, addDoc, deleteDoc, doc } from 'firebase/firestore';
-import { db } from '@/config/firebase';
+import { db } from '@/app/config/firebase';
 
 interface Translation {
   id: string;

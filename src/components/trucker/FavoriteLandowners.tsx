@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { collection, query, where, getDocs, doc, setDoc, deleteDoc, getDoc, addDoc, FirestoreError } from 'firebase/firestore';
-import { db } from '@/config/firebase';
+import { db } from '@/app/config/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { Property as PropertyType } from '@/types/property';
 

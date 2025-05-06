@@ -12,7 +12,7 @@ import {
   Legend
 } from 'chart.js'
 import { Line } from 'react-chartjs-2'
-import { db } from '@/config/firebase'
+import { db } from '@/app/config/firebase'
 import { collection, query, getDocs, orderBy, where, Timestamp } from 'firebase/firestore'
 
 ChartJS.register(

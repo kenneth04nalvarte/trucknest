@@ -7,7 +7,7 @@ import parse from 'date-fns/parse'
 import { startOfWeek as startOfWeekFn } from 'date-fns'
 import getDay from 'date-fns/getDay'
 import 'react-big-calendar/lib/css/react-big-calendar.css'
-import { db } from '@/config/firebase'
+import { db } from '@/app/config/firebase'
 import {
   collection,
   query,

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/context/AuthContext'
-import { db } from '@/config/firebase'
+import { db } from '@/app/config/firebase'
 import {
   collection,
   query,

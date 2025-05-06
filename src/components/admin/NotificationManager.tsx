@@ -3,7 +3,7 @@ import { useAuth } from '@/context/AuthContext';
 import { NotificationService, Notification } from '@/app/services/NotificationService';
 import { FirestoreError } from 'firebase/firestore';
 import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
-import { db } from '@/config/firebase';
+import { db } from '@/app/config/firebase';
 
 interface NotificationManagerProps {
   onError?: (error: Error) => void;

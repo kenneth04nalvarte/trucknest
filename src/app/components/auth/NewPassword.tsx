@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { auth } from '@/config/firebase'
+import { auth } from '@/app/config/firebase'
 import { confirmPasswordReset, verifyPasswordResetCode } from 'firebase/auth'
 import { validatePassword, getPasswordStrengthColor, getPasswordStrengthWidth } from '@/app/utils/passwordValidation'
 

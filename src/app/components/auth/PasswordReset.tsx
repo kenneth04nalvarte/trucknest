@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { auth } from '@/config/firebase'
+import { auth } from '@/app/config/firebase'
 import { sendPasswordResetEmail } from 'firebase/auth'
 
 const RATE_LIMIT_DURATION = 60 * 1000 // 1 minute

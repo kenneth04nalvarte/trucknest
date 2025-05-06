@@ -3,11 +3,11 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '../../context/AuthContext'
-import { db } from '@/config/firebase'
+import { db } from '@/app/config/firebase'
 import { doc, setDoc } from 'firebase/firestore'
 import AddressAutocomplete from '../../components/AddressAutocomplete'
 import { createUserWithEmailAndPassword } from 'firebase/auth'
-import { auth } from '@/config/firebase'
+import { auth } from '@/app/config/firebase'
 
 interface SignupFormData {
   firstName: string;

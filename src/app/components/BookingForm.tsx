@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
-import { db } from '@/config/firebase'
+import { db } from '@/app/config/firebase'
 import { collection, addDoc, Timestamp, query, where, getDocs } from 'firebase/firestore'
 import AddressAutocomplete from './AddressAutocomplete'
 

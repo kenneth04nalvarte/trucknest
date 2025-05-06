@@ -13,7 +13,7 @@ import {
   Tooltip,
   Legend
 } from 'chart.js'
-import { db } from '@/config/firebase'
+import { db } from '@/app/config/firebase'
 import {
   collection,
   query,

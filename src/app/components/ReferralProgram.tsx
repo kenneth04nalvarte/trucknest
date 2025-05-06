@@ -1,0 +1,3 @@
+import { db } from '@/app/config/firebase'
+
+// ... existing code ... 

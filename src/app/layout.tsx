@@ -3,7 +3,8 @@ import { Inter } from 'next/font/google'
 import { AuthProvider } from './context/AuthContext'
 import { FirebaseApp } from 'firebase/app'
 import { MonitoringProvider } from '../context/MonitoringContext'
-import { app } from '../config/firebase'
+import { app } from '@/app/config/firebase'
+import Head from 'next/head'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -19,6 +20,9 @@ interface RootLayoutProps {
 export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="en">
+      <head>
+        <link rel="icon" href="/logo.png" type="image/png" />
+      </head>
       <body className={inter.className}>
         <AuthProvider>
           {/* <MonitoringProvider app={app}> */}

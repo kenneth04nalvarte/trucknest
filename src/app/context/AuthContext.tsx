@@ -9,13 +9,14 @@ import {
   sendPasswordResetEmail,
   User
 } from 'firebase/auth'
-import { auth } from '@/config/firebase'
+import { auth, db } from '@/app/config/firebase'
+import { setDoc, doc } from 'firebase/firestore'
 
 interface AuthContextType {
   user: User | null
   loading: boolean
   signIn: (email: string, password: string) => Promise<void>
-  signUp: (email: string, password: string) => Promise<void>
+  signUp: (email: string, password: string, role: string) => Promise<void>
   logout: () => Promise<void>
   resetPassword: (email: string) => Promise<void>
 }
@@ -51,9 +52,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const signUp = async (email: string, password: string) => {
+  const signUp = async (email: string, password: string, role: string) => {
     try {
-      await createUserWithEmailAndPassword(auth, email, password)
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password)
+      const user = userCredential.user
+      await setDoc(doc(db, 'users', user.uid), {
+        email,
+        role,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        verificationStatus: 'pending',
+      })
     } catch (error) {
       console.error('Error signing up:', error)
       throw error

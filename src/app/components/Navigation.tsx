@@ -32,7 +32,7 @@ export default function Navigation() {
         <div className="flex justify-between h-16">
           <div className="flex">
             <Link href="/" className="flex items-center">
-              <span className="text-xl font-bold text-gray-800">TruckNest</span>
+              <img src="/logo.png" alt="TruckNest Logo" className="h-10 w-auto mr-2" />
             </Link>
           </div>
 

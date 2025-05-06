@@ -5,7 +5,7 @@ import { useDropzone } from 'react-dropzone'
 import Image from 'next/image'
 import ReactCrop, { Crop } from 'react-image-crop'
 import 'react-image-crop/dist/ReactCrop.css'
-import { db, storage } from '@/config/firebase'
+import { db, storage } from '@/app/config/firebase'
 import {
   collection,
   query,

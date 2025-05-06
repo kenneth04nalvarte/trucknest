@@ -19,7 +19,7 @@ export default function AddressAutocomplete({
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null)
 
   const { isLoaded, loadError } = useLoadScript({
-    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
+    googleMapsApiKey: 'AIzaSyCSY-0WgJnF4gtL23hbldUeiw_8P6NX08w',
     libraries: libraries as any,
   })
 

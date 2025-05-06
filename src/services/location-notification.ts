@@ -1,5 +1,5 @@
 import { collection, addDoc, query, where, getDocs, updateDoc, doc } from 'firebase/firestore';
-import { db } from '@/config/firebase';
+import { db } from '@/app/config/firebase';
 import { NotificationService } from './NotificationService';
 
 interface LocationNotification {
