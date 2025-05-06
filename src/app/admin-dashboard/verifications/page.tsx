@@ -1,66 +1,87 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import AdminDashboardLayout from '../layout'
-
-const mockVerifications = [
-  { id: '1', type: 'User', name: 'Jane Doe', email: 'jane@example.com', status: 'pending' },
-  { id: '2', type: 'Property', name: 'Main St Lot', owner: 'John Smith', status: 'pending' },
-]
+import { collection, getDocs, updateDoc, doc } from 'firebase/firestore'
+import { db } from '@/config/firebase'
 
 export default function VerificationsPage() {
-  const [search, setSearch] = useState('')
-  const [verifications, setVerifications] = useState(mockVerifications)
+  const [verifications, setVerifications] = useState([])
+  const [loading, setLoading] = useState(true)
 
-  const handleApprove = (id: string) => {
-    setVerifications(vs => vs.map(v => v.id === id ? { ...v, status: 'approved' } : v))
-  }
-  const handleReject = (id: string) => {
-    setVerifications(vs => vs.map(v => v.id === id ? { ...v, status: 'rejected' } : v))
-  }
+  useEffect(() => {
+    const fetchVerifications = async () => {
+      try {
+        const verificationsRef = collection(db, 'verifications')
+        const snapshot = await getDocs(verificationsRef)
+        const verificationsList = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }))
+        setVerifications(verificationsList)
+      } catch (error) {
+        console.error('Error fetching verifications:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
 
-  const filtered = verifications.filter(v =>
-    v.name.toLowerCase().includes(search.toLowerCase()) ||
-    (v.email && v.email.toLowerCase().includes(search.toLowerCase()))
-  )
+    fetchVerifications()
+  }, [])
+
+  const handleVerification = async (id: string, status: 'approved' | 'rejected') => {
+    try {
+      const verificationRef = doc(db, 'verifications', id)
+      await updateDoc(verificationRef, { status })
+      setVerifications(prev =>
+        prev.map(verification =>
+          verification.id === id
+            ? { ...verification, status }
+            : verification
+        )
+      )
+    } catch (error) {
+      console.error('Error updating verification:', error)
+    }
+  }
 
   return (
     <AdminDashboardLayout>
-      <h1 className="text-3xl font-bold mb-6 text-navy">Verifications</h1>
-      <p>Manage and review pending verifications here.</p>
-      <div className="p-8">
-        <input
-          type="text"
-          placeholder="Search by name or email"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="mb-4 px-3 py-2 border rounded w-full max-w-xs"
-        />
-        <table className="min-w-full bg-white rounded shadow">
-          <thead>
-            <tr>
-              <th className="px-4 py-2 text-left">Type</th>
-              <th className="px-4 py-2 text-left">Name</th>
-              <th className="px-4 py-2 text-left">Owner/Email</th>
-              <th className="px-4 py-2 text-left">Status</th>
-              <th className="px-4 py-2 text-left">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map(v => (
-              <tr key={v.id} className="border-t">
-                <td className="px-4 py-2">{v.type}</td>
-                <td className="px-4 py-2">{v.name}</td>
-                <td className="px-4 py-2">{v.owner || v.email}</td>
-                <td className="px-4 py-2 capitalize">{v.status}</td>
-                <td className="px-4 py-2 flex gap-2">
-                  <button onClick={() => handleApprove(v.id)} className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm">Approve</button>
-                  <button onClick={() => handleReject(v.id)} className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm">Reject</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="space-y-6">
+        <h1 className="text-3xl font-bold text-navy">Verifications</h1>
+        
+        {loading ? (
+          <p>Loading verifications...</p>
+        ) : (
+          <div className="grid gap-6">
+            {verifications.length === 0 ? (
+              <p>No pending verifications.</p>
+            ) : (
+              verifications.map((verification) => (
+                <div key={verification.id} className="bg-white p-6 rounded-lg shadow-md">
+                  <h2 className="text-xl font-semibold text-navy">
+                    {verification.type === 'property' ? 'Property Verification' : 'User Verification'}
+                  </h2>
+                  <p className="text-gray-600">Status: {verification.status || 'Pending'}</p>
+                  <div className="mt-4 flex gap-4">
+                    <button
+                      className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+                      onClick={() => handleVerification(verification.id, 'approved')}
+                    >
+                      Approve
+                    </button>
+                    <button
+                      className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+                      onClick={() => handleVerification(verification.id, 'rejected')}
+                    >
+                      Reject
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
       </div>
     </AdminDashboardLayout>
   )

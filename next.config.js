@@ -8,6 +8,21 @@ const nextConfig = {
   images: {
     domains: ['firebasestorage.googleapis.com'], // Allow images from Firebase Storage
   },
+  experimental: {
+    serverActions: true,
+  },
+  // Increase static page generation timeout
+  staticPageGenerationTimeout: 120,
+  // Disable static generation for admin dashboard pages
+  async generateStaticParams() {
+    return {
+      exclude: [
+        '/admin-dashboard/**',
+        '/trucker-dashboard/**',
+        '/landowner-dashboard/**'
+      ]
+    }
+  },
   webpack: (config, { isServer }) => {
     if (!isServer) {
       config.resolve.fallback = {
