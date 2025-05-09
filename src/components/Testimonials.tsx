@@ -22,7 +22,7 @@ const testimonials = [
     role: 'Fleet Manager',
     image: '/testimonials/mike.jpg',
     quote:
-      'Managing our fleet's parking needs has never been easier. TruckNest's platform is reliable and the booking process is seamless.',
+      "Managing our fleet's parking needs has never been easier. TruckNest's platform is reliable and the booking process is seamless.",
     rating: 5,
   },
 ]
