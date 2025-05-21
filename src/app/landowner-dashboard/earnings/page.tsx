@@ -3,7 +3,11 @@
 import ProtectedRoute from '../../components/ProtectedRoute'
 import DashboardLayout from '../../components/DashboardLayout'
 import { useAuth } from '../../context/AuthContext'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { collection, getDocs, query, where } from 'firebase/firestore'
+import { db } from '../../config/firebase'
+import { Line } from 'react-chartjs-2'
+import 'chart.js/auto'
 
 const sidebarLinks = [
   { href: '/landowner-dashboard/properties', label: 'My Properties' },
@@ -15,6 +19,77 @@ const sidebarLinks = [
 export default function Earnings() {
   const { user } = useAuth()
   const [timeRange, setTimeRange] = useState('month') // week, month, year
+  const [totalEarnings, setTotalEarnings] = useState(0)
+  const [payouts, setPayouts] = useState<any[]>([])
+  const [earningsData, setEarningsData] = useState<any[]>([])
+  const [csvUrl, setCsvUrl] = useState('')
+  // Filters
+  const [propertyFilter, setPropertyFilter] = useState('all')
+  const [properties, setProperties] = useState<any[]>([])
+
+  useEffect(() => {
+    if (!user) return
+    // Fetch properties for filter
+    const fetchProperties = async () => {
+      const q = query(collection(db, 'properties'), where('ownerId', '==', user.uid))
+      const snapshot = await getDocs(q)
+      setProperties(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })))
+    }
+    fetchProperties()
+  }, [user])
+
+  useEffect(() => {
+    if (!user) return
+    // Fetch all bookings for this landowner's properties
+    const fetchEarnings = async () => {
+      let bookingsQ = query(collection(db, 'bookings'), where('ownerId', '==', user.uid))
+      const snapshot = await getDocs(bookingsQ)
+      let sum = 0
+      let data: any[] = []
+      snapshot.forEach(doc => {
+        const d = doc.data()
+        if (propertyFilter === 'all' || d.propertyId === propertyFilter) {
+          sum += d.totalPrice || 0
+          data.push({ date: d.startDate?.toDate?.() || new Date(), amount: d.totalPrice || 0 })
+        }
+      })
+      setTotalEarnings(sum)
+      setEarningsData(data)
+    }
+    // Fetch payout history
+    const fetchPayouts = async () => {
+      const payoutsQ = query(collection(db, 'payouts'), where('ownerId', '==', user.uid))
+      const snapshot = await getDocs(payoutsQ)
+      setPayouts(snapshot.docs.map(doc => doc.data()))
+    }
+    fetchEarnings()
+    fetchPayouts()
+  }, [user, propertyFilter])
+
+  // CSV Export
+  useEffect(() => {
+    if (!earningsData.length) return
+    const csvRows = [
+      ['Date', 'Amount'],
+      ...earningsData.map(e => [e.date.toLocaleDateString(), e.amount])
+    ]
+    const csvContent = 'data:text/csv;charset=utf-8,' + csvRows.map(e => e.join(',')).join('\n')
+    setCsvUrl(encodeURI(csvContent))
+  }, [earningsData])
+
+  // Chart.js data
+  const chartData = {
+    labels: earningsData.map(e => e.date.toLocaleDateString()),
+    datasets: [
+      {
+        label: 'Earnings',
+        data: earningsData.map(e => e.amount),
+        fill: false,
+        borderColor: '#FFA500',
+        tension: 0.1,
+      },
+    ],
+  }
 
   return (
     <ProtectedRoute>
@@ -22,106 +97,27 @@ export default function Earnings() {
         title="Earnings"
         sidebarLinks={sidebarLinks}
       >
-        <div className="space-y-6">
-          {/* Earnings Overview */}
-          <div className="bg-white shadow rounded-lg p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-navy">Earnings Overview</h2>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setTimeRange('week')}
-                  className={`px-4 py-2 rounded font-semibold ${
-                    timeRange === 'week'
-                      ? 'bg-navy text-white'
-                      : 'bg-lightgray text-darkgray hover:bg-gray-200'
-                  }`}
-                >
-                  Week
-                </button>
-                <button
-                  onClick={() => setTimeRange('month')}
-                  className={`px-4 py-2 rounded font-semibold ${
-                    timeRange === 'month'
-                      ? 'bg-navy text-white'
-                      : 'bg-lightgray text-darkgray hover:bg-gray-200'
-                  }`}
-                >
-                  Month
-                </button>
-                <button
-                  onClick={() => setTimeRange('year')}
-                  className={`px-4 py-2 rounded font-semibold ${
-                    timeRange === 'year'
-                      ? 'bg-navy text-white'
-                      : 'bg-lightgray text-darkgray hover:bg-gray-200'
-                  }`}
-                >
-                  Year
-                </button>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-lightgray rounded-lg p-4">
-                <p className="text-darkgray mb-1">Total Earnings</p>
-                <p className="text-2xl font-bold text-green">$2,450.00</p>
-                <p className="text-sm text-darkgray">+12% from last {timeRange}</p>
-              </div>
-              <div className="bg-lightgray rounded-lg p-4">
-                <p className="text-darkgray mb-1">Active Bookings</p>
-                <p className="text-2xl font-bold text-navy">8</p>
-                <p className="text-sm text-darkgray">3 pending requests</p>
-              </div>
-              <div className="bg-lightgray rounded-lg p-4">
-                <p className="text-darkgray mb-1">Average Rate</p>
-                <p className="text-2xl font-bold text-orange">$25/hour</p>
-                <p className="text-sm text-darkgray">+$2 from last {timeRange}</p>
-              </div>
-            </div>
+        <div className="p-6">
+          <h1 className="text-2xl font-bold mb-4 text-navy">Earnings Analytics</h1>
+          <div className="mb-4 flex gap-4 items-center">
+            <label className="font-semibold">Filter by Property:</label>
+            <select value={propertyFilter} onChange={e => setPropertyFilter(e.target.value)} className="border rounded px-2 py-1">
+              <option value="all">All</option>
+              {properties.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
           </div>
-
-          {/* Recent Transactions */}
-          <div className="bg-white shadow rounded-lg p-6">
-            <h2 className="text-2xl font-bold text-navy mb-6">Recent Transactions</h2>
-            <div className="space-y-4">
-              {/* Sample Transaction */}
-              <div className="flex justify-between items-center border-b border-lightgray pb-4">
-                <div>
-                  <h3 className="font-semibold text-navy">Booking #12345</h3>
-                  <p className="text-sm text-darkgray">Mar 15, 2024 - Mar 17, 2024</p>
-                </div>
-                <div className="text-right">
-                  <p className="font-semibold text-green">$120.00</p>
-                  <p className="text-sm text-darkgray">Completed</p>
-                </div>
-              </div>
-
-              {/* No Transactions Message */}
-              <div className="text-center py-8 text-darkgray">
-                <p className="text-lg mb-2">No transactions found</p>
-                <p className="text-sm">Your transaction history will appear here</p>
-              </div>
-            </div>
+          <div className="bg-white rounded shadow p-4 mb-6">
+            <div className="text-lg font-semibold mb-2">Total Earnings: <span className="text-green">${totalEarnings.toFixed(2)}</span></div>
+            <Line data={chartData} />
           </div>
-
-          {/* Payment Information */}
-          <div className="bg-white shadow rounded-lg p-6">
-            <h2 className="text-2xl font-bold text-navy mb-6">Payment Information</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <h3 className="font-semibold text-navy mb-2">Bank Account</h3>
-                <p className="text-darkgray">•••• 1234</p>
-                <p className="text-sm text-darkgray">Chase Bank</p>
-              </div>
-              <div>
-                <h3 className="font-semibold text-navy mb-2">Next Payout</h3>
-                <p className="text-green font-semibold">$450.00</p>
-                <p className="text-sm text-darkgray">Scheduled for Mar 20, 2024</p>
-              </div>
-            </div>
-            <button className="mt-4 text-orange hover:text-orange-dark font-semibold">
-              Update Payment Information
-            </button>
+          <a href={csvUrl} download="earnings.csv" className="bg-orange text-white px-4 py-2 rounded mb-4 inline-block">Download CSV</a>
+          <h2 className="text-xl font-semibold mb-2 mt-8 text-navy">Payout Management</h2>
+          <div className="bg-white rounded shadow p-4">
+            <div className="font-semibold mb-2">Payout History</div>
+            <ul>
+              {payouts.length === 0 ? <li>No payouts yet.</li> : payouts.map((p, i) => <li key={i}>{p.amount} on {p.date}</li>)}
+            </ul>
+            {/* TODO: Add payout request button */}
           </div>
         </div>
       </DashboardLayout>

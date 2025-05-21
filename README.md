@@ -15,7 +15,7 @@ A Next.js application for managing truck parking spaces and reservations.
 
 ## Prerequisites
 
-- Node.js 14.x or later
+- Node.js 20.x LTS or later
 - npm or yarn
 - Firebase account
 - Stripe account (for payments)

@@ -2,8 +2,9 @@
 
 import { createContext, useContext, useEffect, useState } from 'react';
 import { onAuthStateChanged, signOut as firebaseSignOut, User as FirebaseUser } from 'firebase/auth';
-import { auth } from '@/app/config/firebase';
+import { auth, db } from '@/app/config/firebase';
 import { CustomUser } from '@/types/user';
+import { doc, getDoc } from 'firebase/firestore';
 
 export interface AuthContextType {
   user: CustomUser | null;
@@ -33,23 +34,33 @@ export function AuthProvider({ children, onAuthStateChange, onError }: AuthProvi
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
       try {
-        const customUser = firebaseUser ? {
-          ...firebaseUser,
-          uid: firebaseUser.uid,
-          email: firebaseUser.email,
-          displayName: firebaseUser.displayName,
-          photoURL: firebaseUser.photoURL,
-          emailVerified: firebaseUser.emailVerified,
-          metadata: {
-            creationTime: firebaseUser.metadata.creationTime,
-            lastSignInTime: firebaseUser.metadata.lastSignInTime
-          }
-        } as CustomUser : null;
+        if (firebaseUser) {
+          // Fetch user data from Firestore
+          const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+          const userData = userDoc.data();
+          
+          const customUser = {
+            ...firebaseUser,
+            uid: firebaseUser.uid,
+            email: firebaseUser.email,
+            displayName: firebaseUser.displayName,
+            photoURL: firebaseUser.photoURL,
+            emailVerified: firebaseUser.emailVerified,
+            role: userData?.role || 'unknown',
+            metadata: {
+              creationTime: firebaseUser.metadata.creationTime,
+              lastSignInTime: firebaseUser.metadata.lastSignInTime
+            }
+          } as CustomUser;
 
-        setUser(customUser);
-        onAuthStateChange?.(customUser);
+          setUser(customUser);
+          onAuthStateChange?.(customUser);
+        } else {
+          setUser(null);
+          onAuthStateChange?.(null);
+        }
       } catch (err) {
         const error = err as Error;
         console.error('Error processing auth state change:', error);

@@ -37,7 +37,7 @@ export default function AdminDashboard() {
           <p className="text-darkgray mb-4">Select a section from the left to manage the platform.</p>
           {/* You can add dashboard stats or quick links here */}
         </main>
-      </div>
+        </div>
     </ProtectedRoute>
   )
 } 

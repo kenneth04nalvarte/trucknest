@@ -1,0 +1,81 @@
+name: SEO and Performance Checks
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  lighthouse:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Build
+        run: npm run build
+        
+      - name: Start Next.js server
+        run: npm run start &
+        
+      - name: Wait for server
+        run: |
+          timeout 60 bash -c 'until curl -s http://localhost:3000 > /dev/null; do sleep 1; done'
+        
+      - name: Run Lighthouse CI
+        uses: treosh/lighthouse-ci-action@v9
+        with:
+          uploadArtifacts: true
+          temporaryPublicStorage: true
+          configPath: './.lighthouserc.js'
+          
+  sitemap:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Build
+        run: npm run build
+        
+      - name: Start Next.js server
+        run: npm run start &
+        
+      - name: Wait for server
+        run: |
+          timeout 60 bash -c 'until curl -s http://localhost:3000 > /dev/null; do sleep 1; done'
+        
+      - name: Check sitemap
+        run: |
+          curl -s http://localhost:3000/api/sitemap > sitemap.xml
+          if ! grep -q "<?xml" sitemap.xml; then
+            echo "Sitemap is not valid XML"
+            exit 1
+          fi
+          
+  robots:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Check robots.txt
+        run: |
+          if ! grep -q "Allow: /" public/robots.txt; then
+            echo "robots.txt does not allow crawling"
+            exit 1
+          fi 

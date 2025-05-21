@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import AdminDashboardLayout from '../layout'
 
+type SettingKey = 'notifications' | 'emailAlerts' | 'autoApprove'
+
 export default function SettingsPage() {
   const [settings, setSettings] = useState({
     notifications: true,
@@ -10,7 +12,7 @@ export default function SettingsPage() {
     autoApprove: false
   })
 
-  const handleToggle = (setting: string) => {
+  const handleToggle = (setting: SettingKey) => {
     setSettings(prev => ({
       ...prev,
       [setting]: !prev[setting]

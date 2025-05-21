@@ -6,6 +6,8 @@ import { useAuth } from '../../../context/AuthContext'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import AddressAutocomplete from '../../../components/AddressAutocomplete'
+import { addDoc, collection } from 'firebase/firestore'
+import { db } from '@/config/firebase'
 
 const sidebarLinks = [
   { href: '/landowner-dashboard/properties', label: 'My Properties' },
@@ -38,6 +40,7 @@ export default function AddProperty() {
       maintenance: false,
     },
     images: [] as File[],
+    parkingType: 'both',
   })
 
   const vehicleTypeOptions = [
@@ -49,6 +52,7 @@ export default function AddProperty() {
     { label: 'Heavy Equipment', value: 'heavy_equipment' },
   ];
   const [allowedVehicleTypes, setAllowedVehicleTypes] = useState<string[]>([]);
+  const [successMessage, setSuccessMessage] = useState('');
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -87,8 +91,17 @@ export default function AddProperty() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // TODO: Implement property creation logic
-    router.push('/landowner-dashboard/properties')
+    const propertyData = {
+      ...formData,
+      status: 'pending',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }
+    await addDoc(collection(db, 'properties'), propertyData)
+    setSuccessMessage(`You've listed your property at ${formData.address}. It is pending admin approval.`)
+    setTimeout(() => {
+      router.push('/landowner-dashboard/properties')
+    }, 2500)
   }
 
   return (
@@ -98,6 +111,11 @@ export default function AddProperty() {
         sidebarLinks={sidebarLinks}
       >
         <div className="bg-white shadow rounded-lg p-6">
+          {successMessage && (
+            <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+              {successMessage}
+            </div>
+          )}
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Basic Information */}
             <div>
@@ -195,6 +213,47 @@ export default function AddProperty() {
                         <span className="text-darkgray">{type.label}</span>
                       </label>
                     ))}
+                  </div>
+                </div>
+                {/* Parking Type Selector */}
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-darkgray mb-1">
+                    Allowed Parking Types
+                  </label>
+                  <div className="flex gap-4">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="parkingType"
+                        value="short-term"
+                        checked={formData.parkingType === 'short-term'}
+                        onChange={() => setFormData(prev => ({ ...prev, parkingType: 'short-term' }))}
+                        className="accent-orange"
+                      />
+                      <span className="text-darkgray">Short Term Only</span>
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="parkingType"
+                        value="monthly"
+                        checked={formData.parkingType === 'monthly'}
+                        onChange={() => setFormData(prev => ({ ...prev, parkingType: 'monthly' }))}
+                        className="accent-orange"
+                      />
+                      <span className="text-darkgray">Monthly Only</span>
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="parkingType"
+                        value="both"
+                        checked={formData.parkingType === 'both'}
+                        onChange={() => setFormData(prev => ({ ...prev, parkingType: 'both' }))}
+                        className="accent-orange"
+                      />
+                      <span className="text-darkgray">Both</span>
+                    </label>
                   </div>
                 </div>
               </div>

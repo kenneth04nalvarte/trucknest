@@ -4,7 +4,8 @@ import ProtectedRoute from '../../../components/ProtectedRoute'
 import DashboardLayout from '../../../components/DashboardLayout'
 import { useAuth } from '../../../context/AuthContext'
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useParams } from 'next/navigation'
+import AvailabilityCalendar from '../../../../components/landowner/AvailabilityCalendar'
 
 const sidebarLinks = [
   { href: '/landowner-dashboard/properties', label: 'My Properties' },
@@ -24,6 +25,8 @@ interface FormData {
 export default function UpdateAvailability() {
   const { user } = useAuth()
   const router = useRouter()
+  const params = useParams();
+  const propertyId = params?.id as string | undefined;
   const [formData, setFormData] = useState<FormData>({
     propertyId: '',
     startDate: '',
@@ -56,6 +59,7 @@ export default function UpdateAvailability() {
       >
         <div className="bg-white shadow rounded-lg p-6">
           <h1 className="text-2xl font-bold text-navy mb-6">Update Property Availability</h1>
+          {propertyId && <AvailabilityCalendar propertyId={propertyId} />}
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label htmlFor="propertyId" className="block text-sm font-medium text-darkgray mb-2">

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <!-- Property URLs will be dynamically generated in production. Example: -->
+  <url>
+    <loc>https://trucknest-4q7hwykws-kenneths-projects-b5a1aa89.vercel.app/properties/PROPERTY_ID</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <!-- Add more property URLs here -->
+</urlset> 

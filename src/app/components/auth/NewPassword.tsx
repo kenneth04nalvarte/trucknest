@@ -15,7 +15,7 @@ export default function NewPassword() {
   const [success, setSuccess] = useState(false)
   const router = useRouter()
   const searchParams = useSearchParams()
-  const oobCode = searchParams.get('oobCode') // Firebase's reset code from URL
+  const oobCode = searchParams?.get('oobCode') // Firebase's reset code from URL
 
   const passwordValidation = validatePassword(password)
 

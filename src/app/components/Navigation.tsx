@@ -67,12 +67,20 @@ export default function Navigation() {
                   Sign Out
                 </button>
               ) : (
-                <Link
-                  href="/signin"
-                  className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium"
-                >
-                  Sign In
-                </Link>
+                <>
+                  <Link
+                    href="/auth?mode=signin"
+                    className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium"
+                  >
+                    Sign In
+                  </Link>
+                  <Link
+                    href="/auth?mode=signup"
+                    className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-md text-sm font-medium ml-2"
+                  >
+                    Sign Up
+                  </Link>
+                </>
               )}
             </div>
           </div>

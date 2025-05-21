@@ -5,6 +5,7 @@ import DashboardLayout from '../../components/DashboardLayout'
 import { useAuth } from '../../context/AuthContext'
 import { useState, ChangeEvent } from 'react'
 import AddressAutocomplete from '@/components/AddressAutocomplete'
+import ConnectWithStripeButton from '@/components/landowner/ConnectWithStripeButton'
 
 const sidebarLinks = [
   { href: '/landowner-dashboard/properties', label: 'My Properties' },
@@ -275,6 +276,10 @@ export default function Profile() {
             <button className="text-orange hover:text-orange-dark font-semibold">
               Change Password
             </button>
+          </div>
+
+          <div className="mb-8">
+            <ConnectWithStripeButton />
           </div>
         </div>
       </DashboardLayout>

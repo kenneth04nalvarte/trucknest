@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
+import { useGoogleMaps } from './GoogleMapsProvider'
 
 interface MapProps {
   center?: { lat: number; lng: number }
@@ -11,92 +12,67 @@ interface MapProps {
   }>
 }
 
-declare global {
-  interface Window {
-    google: any
-  }
-}
-
 export default function Map({ center = { lat: 39.8283, lng: -98.5795 }, zoom = 4, markers = [] }: MapProps) {
   const mapRef = useRef<HTMLDivElement>(null)
-  const mapInstanceRef = useRef<any>(null)
-  const [isScriptLoaded, setIsScriptLoaded] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const mapInstanceRef = useRef<google.maps.Map | null>(null)
+  const markersRef = useRef<google.maps.marker.AdvancedMarkerElement[]>([])
+  const { isLoaded, loadError, google } = useGoogleMaps()
 
   useEffect(() => {
-    const initializeMap = () => {
-      if (!mapRef.current) return
+    if (!isLoaded || !google || !mapRef.current) return
 
-      try {
-        mapInstanceRef.current = new window.google.maps.Map(mapRef.current, {
-          center,
-          zoom,
-          styles: [
-            {
-              featureType: 'poi',
-              elementType: 'labels',
-              stylers: [{ visibility: 'off' }]
-            }
-          ]
+    try {
+      // Initialize map
+      mapInstanceRef.current = new google.maps.Map(mapRef.current, {
+        center,
+        zoom,
+        styles: [
+          {
+            featureType: 'poi',
+            elementType: 'labels',
+            stylers: [{ visibility: 'off' }]
+          }
+        ]
+      })
+
+      // Clear existing markers
+      markersRef.current.forEach(marker => marker.map = null)
+      markersRef.current = []
+
+      // Add new markers
+      markers.forEach(marker => {
+        const markerView = new google.maps.marker.AdvancedMarkerElement({
+          position: marker.position,
+          map: mapInstanceRef.current,
+          title: marker.title
         })
-
-        // Add markers
-        markers.forEach(marker => {
-          new window.google.maps.Marker({
-            position: marker.position,
-            map: mapInstanceRef.current,
-            title: marker.title
-          })
-        })
-      } catch (err) {
-        setError('Failed to initialize map')
-        console.error('Map initialization error:', err)
-      }
+        markersRef.current.push(markerView)
+      })
+    } catch (err) {
+      console.error('Map initialization error:', err)
     }
-
-    const loadGoogleMapsScript = () => {
-      if (window.google) {
-        setIsScriptLoaded(true)
-        initializeMap()
-        return
-      }
-
-      const script = document.createElement('script')
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`
-      script.async = true
-      script.defer = true
-
-      script.onload = () => {
-        setIsScriptLoaded(true)
-        initializeMap()
-      }
-
-      script.onerror = () => {
-        setError('Failed to load Google Maps script')
-      }
-
-      document.head.appendChild(script)
-    }
-
-    loadGoogleMapsScript()
 
     return () => {
-      // Cleanup
+      // Cleanup markers
+      markersRef.current.forEach(marker => marker.map = null)
+      markersRef.current = []
+      
+      // Cleanup map
       if (mapInstanceRef.current) {
         mapInstanceRef.current = null
       }
     }
-  }, [center, zoom, markers])
+  }, [isLoaded, google, center, zoom, markers])
 
-  if (error) {
+  if (loadError) {
     return (
       <div className="w-full h-[400px] rounded-lg shadow-lg bg-lightgray flex items-center justify-center">
-        <p className="text-darkgray">{error}</p>
+        <p className="text-darkgray">Failed to load Google Maps</p>
       </div>
     )
   }
 
-  if (!isScriptLoaded) {
+  if (!isLoaded) {
     return (
       <div className="w-full h-[400px] rounded-lg shadow-lg bg-lightgray flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange"></div>
@@ -111,4 +87,4 @@ export default function Map({ center = { lat: 39.8283, lng: -98.5795 }, zoom = 4
       style={{ minHeight: '400px' }}
     />
   )
-}
+} 

@@ -27,7 +27,7 @@ export default function AddressAutocomplete({
     if (!isLoaded || !inputRef.current) return
 
     autocompleteRef.current = new google.maps.places.Autocomplete(inputRef.current, {
-      types: ['address'],
+  
       componentRestrictions: { country: 'US' },
     })
 

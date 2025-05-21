@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -19,7 +19,7 @@ export default function DashboardRedirect() {
         if (data && data.role) {
           setRole(data.role);
         } else {
-          setRole("trucker"); // fallback
+          setRole("truckmember"); // fallback
         }
       };
       fetchRole();
@@ -28,10 +28,10 @@ export default function DashboardRedirect() {
 
   useEffect(() => {
     if (role) {
-      if (role === "trucker") {
-        router.replace("/trucker-dashboard");
-      } else if (role === "property-owner" || role === "landowner") {
-        router.replace("/landowner-dashboard");
+      if (role === "truckmember") {
+        router.replace("/truckmember-dashboard");
+      } else if (role === "landmember") {
+        router.replace("/landmember-dashboard");
       } else if (role === "admin") {
         router.replace("/admin-dashboard");
       } else {
@@ -45,4 +45,4 @@ export default function DashboardRedirect() {
       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange"></div>
     </div>
   );
-} 
+}

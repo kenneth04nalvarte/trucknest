@@ -5,8 +5,15 @@ import AdminDashboardLayout from '../layout'
 import { collection, getDocs, updateDoc, doc } from 'firebase/firestore'
 import { db } from '@/config/firebase'
 
+type Verification = {
+  id: string;
+  type?: string;
+  status?: string;
+  // Add other fields as needed
+}
+
 export default function VerificationsPage() {
-  const [verifications, setVerifications] = useState([])
+  const [verifications, setVerifications] = useState<Verification[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {

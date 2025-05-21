@@ -3,8 +3,18 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { db } from '@/app/config/firebase'
-import { collection, addDoc, Timestamp, query, where, getDocs } from 'firebase/firestore'
+import {
+  collection,
+  addDoc,
+  Timestamp,
+  doc,
+  getDoc,
+  query,
+  where,
+  getDocs
+} from 'firebase/firestore'
 import AddressAutocomplete from './AddressAutocomplete'
+import BookAndPayButton from './BookAndPayButton'
 
 interface ParkingSpot {
   id: string
@@ -24,6 +34,7 @@ interface ParkingSpot {
   }
   ownerId: string
   ownerName: string
+  ownerStripeAccountId: string
 }
 
 interface BookingFormData {
@@ -37,14 +48,30 @@ interface BookingFormData {
   lng: number
 }
 
-export default function BookingForm() {
+interface BookingFormProps {
+  selectedSpot: {
+    id: string
+    ownerId: string
+    address: string
+    lat: number
+    lng: number
+    hourlyRate: number
+    dailyRate: number
+    weeklyRate: number
+    monthlyRate: number
+    ownerStripeAccountId: string
+  } | null
+}
+
+export default function BookingForm({ selectedSpot }: BookingFormProps) {
   const { user } = useAuth()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
   const [parkingSpots, setParkingSpots] = useState<ParkingSpot[]>([])
-  const [selectedSpot, setSelectedSpot] = useState<ParkingSpot | null>(null)
+  const [selectedParkingSpot, setSelectedParkingSpot] = useState<ParkingSpot | null>(null)
   const [totalPrice, setTotalPrice] = useState(0)
+  const [bookingId, setBookingId] = useState<string | null>(null)
   const [formData, setFormData] = useState<BookingFormData>({
     startDate: '',
     endDate: '',
@@ -61,10 +88,10 @@ export default function BookingForm() {
   }, [])
 
   useEffect(() => {
-    if (formData.startDate && formData.endDate && selectedSpot) {
+    if (formData.startDate && formData.endDate && selectedParkingSpot) {
       calculatePrice()
     }
-  }, [formData.startDate, formData.endDate, selectedSpot])
+  }, [formData.startDate, formData.endDate, selectedParkingSpot])
 
   const loadParkingSpots = async () => {
     try {
@@ -82,7 +109,7 @@ export default function BookingForm() {
   }
 
   const calculatePrice = () => {
-    if (!selectedSpot || !formData.startDate || !formData.endDate) return
+    if (!selectedParkingSpot || !formData.startDate || !formData.endDate) return
 
     const start = new Date(formData.startDate)
     const end = new Date(formData.endDate)
@@ -93,61 +120,49 @@ export default function BookingForm() {
 
     let price = 0
     if (months > 0) {
-      price = months * selectedSpot.monthlyRate
+      price = months * selectedParkingSpot.monthlyRate
       const remainingDays = days % 30
       if (remainingDays > 0) {
-        price += Math.min(remainingDays * selectedSpot.dailyRate, selectedSpot.monthlyRate)
+        price += Math.min(remainingDays * selectedParkingSpot.dailyRate, selectedParkingSpot.monthlyRate)
       }
     } else if (weeks > 0) {
-      price = weeks * selectedSpot.weeklyRate
+      price = weeks * selectedParkingSpot.weeklyRate
       const remainingDays = days % 7
       if (remainingDays > 0) {
-        price += Math.min(remainingDays * selectedSpot.dailyRate, selectedSpot.weeklyRate)
+        price += Math.min(remainingDays * selectedParkingSpot.dailyRate, selectedParkingSpot.weeklyRate)
       }
     } else if (days > 0) {
-      price = Math.min(days * selectedSpot.dailyRate, selectedSpot.weeklyRate)
+      price = Math.min(days * selectedParkingSpot.dailyRate, selectedParkingSpot.weeklyRate)
     } else {
-      price = Math.min(hours * selectedSpot.hourlyRate, selectedSpot.dailyRate)
+      price = Math.min(hours * selectedParkingSpot.hourlyRate, selectedParkingSpot.dailyRate)
     }
 
     setTotalPrice(price)
   }
 
   const checkAvailability = async (spotId: string, start: Date, end: Date) => {
-    try {
-      const bookingsQuery = query(
-        collection(db, 'bookings'),
-        where('parkingSpotId', '==', spotId),
-        where('status', '==', 'confirmed')
-      )
-      const snapshot = await getDocs(bookingsQuery)
-      
-      for (const doc of snapshot.docs) {
-        const booking = doc.data()
-        const bookingStart = booking.startDate.toDate()
-        const bookingEnd = booking.endDate.toDate()
-        
-        if (
-          (start >= bookingStart && start < bookingEnd) ||
-          (end > bookingStart && end <= bookingEnd) ||
-          (start <= bookingStart && end >= bookingEnd)
-        ) {
-          return false
-        }
-      }
-      
-      return true
-    } catch (error) {
-      console.error('Error checking availability:', error)
-      return false
-    }
+    const bookingsRef = collection(db, 'bookings')
+    const q = query(
+      bookingsRef,
+      where('parkingSpotId', '==', spotId),
+      where('status', 'in', ['pending', 'confirmed'])
+    )
+    
+    const querySnapshot = await getDocs(q)
+    const bookings = querySnapshot.docs.map(doc => doc.data())
+    
+    return !bookings.some(booking => {
+      const bookingStart = booking.startDate.toDate()
+      const bookingEnd = booking.endDate.toDate()
+      return (start < bookingEnd && end > bookingStart)
+    })
   }
 
   const handleSpotSelect = async (spotId: string) => {
     const spot = parkingSpots.find(s => s.id === spotId)
     if (!spot) return
 
-    setSelectedSpot(spot)
+    setSelectedParkingSpot(spot)
     setFormData(prev => ({
       ...prev,
       parkingSpotId: spotId,
@@ -159,7 +174,11 @@ export default function BookingForm() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
-    setFormData(prev => ({ ...prev, [name]: value }))
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }))
+    calculatePrice()
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -172,7 +191,7 @@ export default function BookingForm() {
       return
     }
 
-    if (!selectedSpot) {
+    if (!selectedParkingSpot) {
       setError('Please select a parking spot')
       return
     }
@@ -185,7 +204,7 @@ export default function BookingForm() {
       return
     }
 
-    const isAvailable = await checkAvailability(selectedSpot.id, start, end)
+    const isAvailable = await checkAvailability(selectedParkingSpot.id, start, end)
     if (!isAvailable) {
       setError('This parking spot is not available for the selected dates')
       return
@@ -194,18 +213,18 @@ export default function BookingForm() {
     try {
       setLoading(true)
 
-      await addDoc(collection(db, 'bookings'), {
+      const bookingRef = await addDoc(collection(db, 'bookings'), {
         userId: user.uid,
-        parkingSpotId: selectedSpot.id,
-        ownerId: selectedSpot.ownerId,
+        parkingSpotId: selectedParkingSpot.id,
+        ownerId: selectedParkingSpot.ownerId,
         startDate: Timestamp.fromDate(start),
         endDate: Timestamp.fromDate(end),
         vehicleType: formData.vehicleType,
         specialRequirements: formData.specialRequirements,
         location: {
-          address: selectedSpot.address,
-          lat: selectedSpot.lat,
-          lng: selectedSpot.lng
+          address: selectedParkingSpot.address,
+          lat: selectedParkingSpot.lat,
+          lng: selectedParkingSpot.lng
         },
         totalPrice,
         status: 'pending',
@@ -213,19 +232,8 @@ export default function BookingForm() {
         updatedAt: Timestamp.now(),
       })
 
+      setBookingId(bookingRef.id)
       setSuccess(true)
-      setFormData({
-        startDate: '',
-        endDate: '',
-        vehicleType: 'semi',
-        parkingSpotId: '',
-        specialRequirements: '',
-        address: '',
-        lat: 0,
-        lng: 0,
-      })
-      setSelectedSpot(null)
-      setTotalPrice(0)
     } catch (error) {
       console.error('Error creating booking:', error)
       setError('Failed to create booking. Please try again.')
@@ -235,40 +243,38 @@ export default function BookingForm() {
   }
 
   return (
-    <div className="bg-white shadow rounded-lg p-6">
-      <h2 className="text-xl font-semibold mb-4">Book a Parking Spot</h2>
-
+    <div className="max-w-2xl mx-auto p-6 bg-white rounded-lg shadow">
+      <h2 className="text-2xl font-bold mb-6">Book Parking Spot</h2>
+      
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label htmlFor="startDate" className="block text-sm font-medium text-gray-700">
-              Start Date
-            </label>
-            <input
-              type="datetime-local"
-              id="startDate"
-              name="startDate"
-              required
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3"
-              value={formData.startDate}
-              onChange={handleInputChange}
-            />
-          </div>
+        <div>
+          <label htmlFor="startDate" className="block text-sm font-medium text-gray-700">
+            Start Date & Time
+          </label>
+          <input
+            type="datetime-local"
+            id="startDate"
+            name="startDate"
+            required
+            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3"
+            value={formData.startDate}
+            onChange={handleInputChange}
+          />
+        </div>
 
-          <div>
-            <label htmlFor="endDate" className="block text-sm font-medium text-gray-700">
-              End Date
-            </label>
-            <input
-              type="datetime-local"
-              id="endDate"
-              name="endDate"
-              required
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3"
-              value={formData.endDate}
-              onChange={handleInputChange}
-            />
-          </div>
+        <div>
+          <label htmlFor="endDate" className="block text-sm font-medium text-gray-700">
+            End Date & Time
+          </label>
+          <input
+            type="datetime-local"
+            id="endDate"
+            name="endDate"
+            required
+            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3"
+            value={formData.endDate}
+            onChange={handleInputChange}
+          />
         </div>
 
         <div>
@@ -283,55 +289,11 @@ export default function BookingForm() {
             value={formData.vehicleType}
             onChange={handleInputChange}
           >
-            <option value="semi">Semi-Truck</option>
-            <option value="box">Box Truck</option>
-            <option value="van">Van</option>
+            <option value="semi">Semi Truck</option>
+            <option value="box_truck">Box Truck</option>
+            <option value="pickup">Pickup Truck</option>
             <option value="other">Other</option>
           </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Select Parking Spot
-          </label>
-          <div className="grid grid-cols-1 gap-4">
-            {parkingSpots.map(spot => (
-              <div
-                key={spot.id}
-                className={`border rounded-lg p-4 cursor-pointer transition-colors ${
-                  selectedSpot?.id === spot.id
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-gray-200 hover:border-blue-300'
-                }`}
-                onClick={() => handleSpotSelect(spot.id)}
-              >
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h3 className="font-medium">{spot.name}</h3>
-                    <p className="text-sm text-gray-500">{spot.address}</p>
-                    <div className="mt-2 text-sm">
-                      <p>Size: {spot.size.length}' x {spot.size.width}' x {spot.size.height}'</p>
-                      <p className="mt-1">
-                        Rates: ${spot.hourlyRate}/hr | ${spot.dailyRate}/day | ${spot.weeklyRate}/week
-                      </p>
-                    </div>
-                    {spot.amenities.length > 0 && (
-                      <div className="mt-2 flex flex-wrap gap-1">
-                        {spot.amenities.map(amenity => (
-                          <span
-                            key={amenity}
-                            className="px-2 py-1 text-xs bg-gray-100 rounded-full"
-                          >
-                            {amenity}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
         </div>
 
         <div>
@@ -359,21 +321,29 @@ export default function BookingForm() {
           <div className="text-red-600 text-sm">{error}</div>
         )}
 
-        {success && (
-          <div className="text-green-600 text-sm">Booking created successfully!</div>
+        {success && bookingId && selectedParkingSpot && user && (
+          <div className="space-y-4">
+            <div className="text-green-600 text-sm">Booking created successfully! Proceed to payment:</div>
+            <BookAndPayButton
+              propertyId={selectedParkingSpot.id}
+              price={totalPrice}
+            />
+          </div>
         )}
 
-        <div>
-          <button
-            type="submit"
-            disabled={loading || !selectedSpot}
-            className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
-              (loading || !selectedSpot) ? 'opacity-50 cursor-not-allowed' : ''
-            }`}
-          >
-            {loading ? 'Creating Booking...' : 'Book Now'}
-          </button>
-        </div>
+        {!success && (
+          <div>
+            <button
+              type="submit"
+              disabled={loading || !selectedParkingSpot}
+              className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
+                (loading || !selectedParkingSpot) ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
+            >
+              {loading ? 'Creating Booking...' : 'Book Now'}
+            </button>
+          </div>
+        )}
       </form>
     </div>
   )

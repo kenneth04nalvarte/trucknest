@@ -4,7 +4,7 @@ const testimonials = [
   {
     name: 'John Smith',
     role: 'Truck Driver',
-    image: '/testimonials/john.jpg',
+    image: '/default-avatar.jpg',
     quote:
       'TruckNest has made finding safe parking spots so much easier. The app is intuitive and the property owners are always responsive.',
     rating: 5,
@@ -12,7 +12,7 @@ const testimonials = [
   {
     name: 'Sarah Johnson',
     role: 'Property Owner',
-    image: '/testimonials/sarah.jpg',
+    image: '/default-avatar.jpg',
     quote:
       'As a property owner, TruckNest has helped me monetize my empty lot while providing a valuable service to truckers. The platform is easy to use and the support team is fantastic.',
     rating: 5,
@@ -20,7 +20,7 @@ const testimonials = [
   {
     name: 'Mike Wilson',
     role: 'Fleet Manager',
-    image: '/testimonials/mike.jpg',
+    image: '/default-avatar.jpg',
     quote:
       "Managing our fleet's parking needs has never been easier. TruckNest's platform is reliable and the booking process is seamless.",
     rating: 5,

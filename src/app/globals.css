@@ -42,4 +42,9 @@ body {
   .card {
     @apply bg-white rounded-lg shadow-md p-6;
   }
+}
+
+input::placeholder, textarea::placeholder {
+  color: #6b7280 !important; /* Tailwind gray-500, much higher contrast */
+  opacity: 1 !important;
 } 
