@@ -19,9 +19,7 @@ const nextConfig = {
   // Configure which pages should be statically generated
   experimental: {
     // Enable static optimization for all pages except admin routes
-    optimizeCss: true,
-    optimizeImages: true,
-    optimizeFonts: true,
+    optimizeCss: true
   },
 
   webpack: (config, { isServer }) => {
